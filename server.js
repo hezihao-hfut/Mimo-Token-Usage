@@ -312,6 +312,35 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { accounts: uniqueAccounts() });
     }
 
+    // Delete an account by userId or email
+    const deleteMatch = pathname.match(/^\/api\/accounts\/(.+)$/);
+    if (deleteMatch && req.method === 'DELETE') {
+        const id = decodeURIComponent(deleteMatch[1]);
+        let deleted = false;
+
+        // Try by userId (key in accounts object)
+        if (accounts[id]) {
+            delete accounts[id];
+            deleted = true;
+        }
+        // Try by email
+        if (!deleted) {
+            const found = Object.entries(accounts).find(([, v]) => v.email === id || v.userId === id);
+            if (found) {
+                delete accounts[found[0]];
+                deleted = true;
+            }
+        }
+
+        if (deleted) {
+            persist();
+            console.log(`[Delete] ✅ Account removed: ${id}`);
+            return json(res, 200, { success: true, message: 'Account deleted' });
+        } else {
+            return json(res, 404, { success: false, error: 'Account not found' });
+        }
+    }
+
     // Update cookie for a specific account (by userId or email)
     if (pathname === '/api/cookie' && req.method === 'POST') {
         const body = await readBody(req);

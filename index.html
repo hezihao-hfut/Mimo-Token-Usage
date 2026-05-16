@@ -662,6 +662,11 @@
         accounts=accounts.filter(a=>a.id!==id);
         saveData(); renderAccounts(); updateSummary();
         showToast(`已删除「${acc.name}」`,'info');
+        // 同步删除服务端存储
+        if(proxyAvailable && (acc.userId || acc.email)) {
+            const delId = encodeURIComponent(acc.userId || acc.email);
+            fetch(getProxyUrl() + '/api/accounts/' + delId, { method: 'DELETE' }).catch(()=>{});
+        }
     }
 
     // ====== Core: Refresh via server-side stored cookie ======

@@ -4,9 +4,69 @@
  */
 
 const { chromium } = require('playwright-core');
+const os = require('os');
+const fs = require('fs');
 
 const MIMO_BASE = 'https://platform.xiaomimimo.com';
 const LOGIN_URL = MIMO_BASE + '/console/plan-manage';
+
+/**
+ * 跨平台查找 Chrome / Chromium 可执行文件路径
+ */
+function findChromePath() {
+    const platform = os.platform();
+
+    if (platform === 'win32') {
+        const candidates = [
+            // Chrome
+            process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
+            process.env['PROGRAMFILES'] + '\\Google\\Chrome\\Application\\chrome.exe',
+            process.env['PROGRAMFILES(X86)'] + '\\Google\\Chrome\\Application\\chrome.exe',
+            // Edge (作为后备)
+            process.env['PROGRAMFILES(X86)'] + '\\Microsoft\\Edge\\Application\\msedge.exe',
+            process.env['PROGRAMFILES'] + '\\Microsoft\\Edge\\Application\\msedge.exe',
+        ];
+        for (const p of candidates) {
+            if (p && fs.existsSync(p)) return p;
+        }
+    } else if (platform === 'darwin') {
+        const candidates = [
+            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+            '/Applications/Chromium.app/Contents/MacOS/Chromium',
+            '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+        ];
+        for (const p of candidates) {
+            if (fs.existsSync(p)) return p;
+        }
+    } else {
+        // Linux
+        const candidates = [
+            '/usr/bin/google-chrome',
+            '/usr/bin/google-chrome-stable',
+            '/usr/bin/chromium',
+            '/usr/bin/chromium-browser',
+            '/snap/bin/chromium',
+        ];
+        for (const p of candidates) {
+            if (fs.existsSync(p)) return p;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * 获取与当前平台匹配的 User-Agent
+ */
+function getPlatformUserAgent() {
+    const platform = os.platform();
+    if (platform === 'win32') {
+        return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+    } else if (platform === 'darwin') {
+        return 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+    }
+    return 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+}
 
 // 浏览器实例管理
 let browserInstance = null;
@@ -38,8 +98,20 @@ async function startAuth() {
     updateState({ status: 'launching', message: '正在启动浏览器...', progress: 10 });
 
     try {
+        const chromePath = findChromePath();
+        if (!chromePath) {
+            const platform = os.platform();
+            const hint = platform === 'win32'
+                ? '请安装 Google Chrome 或 Microsoft Edge'
+                : platform === 'darwin'
+                    ? '请安装 Google Chrome'
+                    : '请安装 Google Chrome: sudo apt install google-chrome-stable';
+            throw new Error(`未找到浏览器可执行文件。${hint}`);
+        }
+        console.log(`[Auth] Using browser at: ${chromePath}`);
+
         browserInstance = await chromium.launch({
-            executablePath: '/usr/bin/google-chrome',
+            executablePath: chromePath,
             headless: false,        // 必须显示浏览器让用户登录
             args: [
                 '--no-first-run',
@@ -49,7 +121,7 @@ async function startAuth() {
         });
 
         const context = await browserInstance.newContext({
-            userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            userAgent: getPlatformUserAgent(),
             viewport: { width: 1280, height: 800 },
         });
 
