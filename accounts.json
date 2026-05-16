@@ -1,0 +1,142 @@
+{
+  "6868656606": {
+    "userId": "6868656606",
+    "email": "hez***0@gmail.com",
+    "planName": "Standard",
+    "planCode": "standard",
+    "periodEnd": "2026-05-28 23:59:59",
+    "autoRenew": false,
+    "used": 93983745,
+    "limit": 200000000,
+    "percent": 0.47,
+    "balance": {
+      "balance": "0.72",
+      "frozenBalance": "0.00",
+      "currency": "USD",
+      "overdraftLimit": "0.00",
+      "remainingOverdraftLimit": "0.00",
+      "giftBalance": "0.72",
+      "cashBalance": "0.00"
+    },
+    "apiKey": "tp-skdwcn************************************egv6xu",
+    "cookie": "api-platform_serviceToken=\"yVHEDQlNiFT1WavLtPFne1qFL2Ebmz5pOJIxlt/hyklZWfn6XdIqmPBa+sRsTWUgQynSEGeKkGgOxzlzAPIlqOHFJBQ3Dte6q0m5m1plv+0eUOQb1p2k0e4IDRd95/d1r7UCKnbOBmhmIK6vetpRLeQbz1wev0DnyqtSr3q0AAcACbQw0/CLNerYZyeLYr1MNS1u8T/cqQIXm7RI5Pd2qBACWOyrfZTMt+XL9ul+s+xzRcQoWnfqrAy7bx6/1Sp9BYbjXHu8hQiFqqM+AoqXciPWelTa4u38WPGJQAxR/23exuAEdAdqAR+3XUyJWBtml9333O9dKnoEBphoSIufYMHQ4pC/kR8DAI+sk16VhPE=\"; userId=6868656606; api-platform_slh=\"REw+fFiKb/HeKprlaF/DWpcFYA0=\"; api-platform_ph=\"hsad44k38qTKD/2fM+9QPA==\"",
+    "data": {
+      "planName": "Standard",
+      "planCode": "standard",
+      "periodEnd": "2026-05-28 23:59:59",
+      "expired": false,
+      "autoRenew": false,
+      "usedTokens": 200154538,
+      "totalTokens": 200000000,
+      "percent": 1,
+      "balance": {
+        "balance": "0.72",
+        "frozenBalance": "0.00",
+        "currency": "USD",
+        "overdraftLimit": "0.00",
+        "remainingOverdraftLimit": "0.00",
+        "giftBalance": "0.72",
+        "cashBalance": "0.00"
+      },
+      "userId": "6868656606",
+      "email": "hez***0@gmail.com"
+    },
+    "lastPushed": "2026-05-15T07:53:12.104Z",
+    "lastRefreshed": "2026-05-15T16:37:13.020Z",
+    "cookieExpires": null,
+    "openaiBaseUrl": "https://token-plan-sgp.xiaomimimo.com/v1"
+  },
+  "6868888646": {
+    "userId": "6868888646",
+    "email": "766***9@qq.com",
+    "cookie": "api-platform_serviceToken=\"yVHEDQlNiFT1WavLtPFne8JS2Sx72hMZnJMApPSmCvpJWJ5rsJkkV7f8SPti1kvcqp36ckx7wCprwfxVDDuV6o9TLAr3uyJuKFqqQ/MGUKIBvFTGI9B3/guIe0FCLdVelGihi4LaYXPokEIPccSeD43s0SQ8O9wx6GCLe/XlY8O3NQP5Gp3I8oI9DlgPFFE/bLlQn3j3x5vEjGOmcX3N1En3KN9JcazApOOSIzI3QC8HZiNTXPcoIVi3j9VzwdjSBnQgqBBcxECCu7E6y4ZRx/hrd4n2/MBrHn5fDqQ8tD1JLhfOKvM7/8EeYgxBDfmfV6qW4nI5r4BfwVvC9QknPRSOiUW8KJ9quTogSWmnMVE=\"; userId=6868888646; api-platform_slh=\"wbIRhtcSgeFz3tP/TaXpcBsQHXw=\"; api-platform_ph=\"YMnblk+5eV0pUKT+moYwZg==\"",
+    "data": {
+      "planName": "Max",
+      "planCode": "max",
+      "periodEnd": "2026-05-29 23:59:59",
+      "expired": false,
+      "autoRenew": false,
+      "usedTokens": 133048737,
+      "totalTokens": 1600000000,
+      "percent": 0.08,
+      "balance": {
+        "balance": "0.72",
+        "frozenBalance": "0.00",
+        "currency": "USD",
+        "overdraftLimit": "0.00",
+        "remainingOverdraftLimit": "0.00",
+        "giftBalance": "0.72",
+        "cashBalance": "0.00"
+      },
+      "userId": "6868888646",
+      "email": "766***9@qq.com"
+    },
+    "lastPushed": "2026-05-15T09:20:22.182Z",
+    "lastRefreshed": "2026-05-15T16:37:10.178Z",
+    "apiKey": "tp-sh9lri************************************u6zuup",
+    "openaiBaseUrl": "https://token-plan-sgp.xiaomimimo.com/v1",
+    "cookieExpires": null
+  },
+  "6868902837": {
+    "userId": "6868902837",
+    "email": "hez***t@gmail.com",
+    "cookie": "api-platform_serviceToken=\"yVHEDQlNiFT1WavLtPFne6fvMU3u7p906hb6UNi1FKh6MTi52JHbPnKNshCwY/xcwId7uGD09MyWNMAvo9eqJF9jz48R1Y01IQDdzELQvR0reQoPVlzvPdCrMw0fVD/MIikfRsCWyZ1ljgFdmByuAeLgHnShBpJF3/BEJ1VprnuK1bP3QoCdRWriG4G/xvMvD+G3YXR80OETOxH6gTjDUA1IZOUUgQdx2hTh1OYYQ1FF8895EMRAcq4FEbHnK7i/SDtKdNervE6d+b2/F21vAvYUO7iFoxR7c+qSaOF3wOehpOhKK5beMs4GZr8q0QWLIGpL7aaeEJK1OcqnpOSooBAhrw1e+RnZ3cC6nQpnO3A=\"; userId=6868902837; api-platform_slh=\"bbFXwOxsnQGGv8PWPd0CBLgK6uM=\"; api-platform_ph=\"jN0tkhi+H5Es6v6AQpgh3A==\"",
+    "cookieExpires": null,
+    "data": {
+      "planName": "Pro",
+      "planCode": "pro",
+      "periodEnd": "2026-05-29 23:59:59",
+      "expired": false,
+      "autoRenew": false,
+      "usedTokens": 0,
+      "totalTokens": 700000000,
+      "percent": 0,
+      "balance": {
+        "balance": "0.72",
+        "frozenBalance": "0.00",
+        "currency": "USD",
+        "overdraftLimit": "0.00",
+        "remainingOverdraftLimit": "0.00",
+        "giftBalance": "0.72",
+        "cashBalance": "0.00"
+      },
+      "userId": "6868902837",
+      "email": "hez***t@gmail.com"
+    },
+    "apiKey": "tp-sso7rz************************************yf4v2e",
+    "openaiBaseUrl": "https://token-plan-sgp.xiaomimimo.com/v1",
+    "lastPushed": "2026-05-14T08:37:02.914Z",
+    "lastRefreshed": "2026-05-15T08:14:06.432Z"
+  },
+  "6868903890": {
+    "userId": "6868903890",
+    "email": "hez***1@gmail.com",
+    "cookie": "api-platform_serviceToken=\"yVHEDQlNiFT1WavLtPFne0U+3qx6RiRRpIkHdug3B8JPeWzra3UjQ1fK2QenZWdvQasHT9yYv+Q1oJMHw8RBpaT6wSjEQjF3GXMX0N+JhUD+TDvYOL+gvvwscXu+5660zyQdhhpWJi0+zn0FvWoAaav//mFzgg2shkhaxthpgdHvUfFt8faHY9DjmuMcnwSAqdOEh1GTiBwSaC66K/Ti1iM7o4vwfOJYblhB2csLR6o7AiRbwg5zUxt5Sh9klBn60QnXkMLyhRvDmDX+1tChcjl5UPL/y94JnvrAGBXcepoe5MnyejEzd2NDXP1x+qenjNQ8TWYaqwb0ghFM/eJSCnFpRAApyQIV2mMIaZYzfCQ=\"; userId=6868903890; api-platform_slh=\"/Hq5Nw7VxL2OoWxmRy5MoEVofgQ=\"; api-platform_ph=\"CJ9wIcGe0fMBd4UyljKs5g==\"",
+    "cookieExpires": null,
+    "data": {
+      "planName": "Pro",
+      "planCode": "pro",
+      "periodEnd": "2026-05-29 23:59:59",
+      "expired": false,
+      "autoRenew": false,
+      "usedTokens": 0,
+      "totalTokens": 700000000,
+      "percent": 0,
+      "balance": {
+        "balance": "0.72",
+        "frozenBalance": "0.00",
+        "currency": "USD",
+        "overdraftLimit": "0.00",
+        "remainingOverdraftLimit": "0.00",
+        "giftBalance": "0.72",
+        "cashBalance": "0.00"
+      },
+      "userId": "6868903890",
+      "email": "hez***1@gmail.com"
+    },
+    "apiKey": "tp-s4zt0f************************************cy3ydo",
+    "openaiBaseUrl": "https://token-plan-sgp.xiaomimimo.com/v1",
+    "lastPushed": "2026-05-14T08:38:28.235Z",
+    "lastRefreshed": "2026-05-15T08:14:04.748Z"
+  }
+}

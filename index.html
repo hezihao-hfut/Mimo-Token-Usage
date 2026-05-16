@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiMo Token Plan 用量汇总面板</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #0f0f23; --bg-secondary: #1a1a2e; --bg-card: #16213e;
+            --accent: #ff6b35; --accent-light: #ff8c5a; --accent-glow: rgba(255,107,53,0.3);
+            --text-primary: #e8e8e8; --text-secondary: #8892b0; --text-muted: #5a6380;
+            --success: #64ffda; --warning: #ffd93d; --danger: #ff6b6b; --border: #233554;
+            --gradient-1: linear-gradient(135deg, #ff6b35, #f7931e);
+            --gradient-2: linear-gradient(135deg, #64ffda, #48c6ef);
+            --gradient-3: linear-gradient(135deg, #a855f7, #6366f1);
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(ellipse at 20% 50%, rgba(255,107,53,0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(100,255,218,0.05) 0%, transparent 50%), radial-gradient(ellipse at 50% 80%, rgba(168,85,247,0.05) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px; position: relative; z-index: 1; }
+        .header { text-align: center; padding: 40px 0 32px; }
+        .header h1 { font-size: 2.2em; font-weight: 700; background: var(--gradient-1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
+        .header .subtitle { color: var(--text-secondary); font-size: 1em; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+        .summary-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; position: relative; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; }
+        .summary-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+        .summary-card::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px; }
+        .summary-card.orange::after { background: var(--gradient-1); }
+        .summary-card.green::after { background: var(--gradient-2); }
+        .summary-card.purple::after { background: var(--gradient-3); }
+        .summary-card.blue::after { background: linear-gradient(135deg, #3b82f6, #06b6d4); }
+        .card-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 16px; }
+        .card-label { font-size: 0.85em; color: var(--text-secondary); margin-bottom: 6px; }
+        .card-value { font-size: 1.8em; font-weight: 700; letter-spacing: -0.5px; }
+        .card-sub { font-size: 0.8em; color: var(--text-muted); margin-top: 4px; }
+        .tabs { display: flex; gap: 4px; background: var(--bg-secondary); border-radius: 12px; padding: 4px; margin-bottom: 24px; width: fit-content; }
+        .tab-btn { padding: 10px 24px; border: none; background: transparent; color: var(--text-secondary); border-radius: 10px; cursor: pointer; font-size: 0.9em; font-weight: 500; transition: all 0.2s; }
+        .tab-btn.active { background: var(--accent); color: white; box-shadow: 0 2px 10px var(--accent-glow); }
+        .tab-btn:hover:not(.active) { color: var(--text-primary); background: rgba(255,255,255,0.05); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .accounts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px; margin-bottom: 28px; }
+        .account-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; transition: transform 0.2s, box-shadow 0.2s; }
+        .account-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+        .account-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .account-name { font-size: 1.1em; font-weight: 600; }
+        .account-meta { font-size: 0.78em; color: var(--text-muted); margin-top: 2px; }
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75em; font-weight: 600; white-space: nowrap; }
+        .badge-active { background: rgba(100,255,218,0.15); color: var(--success); }
+        .badge-expired { background: rgba(255,107,107,0.15); color: var(--danger); }
+        .badge-unknown { background: rgba(255,217,61,0.15); color: var(--warning); }
+        .plan-info { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 10px; }
+        .plan-badge { padding: 6px 14px; border-radius: 8px; font-size: 0.85em; font-weight: 700; color: white; }
+        .plan-badge.standard { background: linear-gradient(135deg, #3b82f6, #06b6d4); }
+        .plan-badge.lite { background: linear-gradient(135deg, #10b981, #34d399); }
+        .plan-badge.pro { background: linear-gradient(135deg, #a855f7, #6366f1); }
+        .plan-badge.max { background: linear-gradient(135deg, #ff6b35, #f7931e); }
+        .plan-detail { flex: 1; }
+        .plan-detail .name { font-weight: 600; font-size: 0.95em; }
+        .plan-detail .desc { font-size: 0.78em; color: var(--text-muted); }
+        .usage-bar-container { margin-bottom: 16px; }
+        .usage-bar-label { display: flex; justify-content: space-between; font-size: 0.85em; margin-bottom: 6px; }
+        .usage-bar { width: 100%; height: 8px; background: rgba(255,255,255,0.08); border-radius: 10px; overflow: hidden; }
+        .usage-bar-fill { height: 100%; border-radius: 10px; transition: width 1s ease; background: var(--gradient-1); }
+        .usage-bar-fill.danger { background: linear-gradient(90deg, #ff6b6b, #ee5a24); }
+        .usage-bar-fill.warning { background: linear-gradient(90deg, #ffd93d, #f7931e); }
+        .usage-bar-fill.safe { background: var(--gradient-2); }
+        .account-details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+        .detail-item { display: flex; flex-direction: column; gap: 2px; }
+        .detail-label { font-size: 0.75em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .detail-value { font-size: 0.95em; font-weight: 500; }
+        .account-actions { display: flex; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+        .btn { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85em; font-weight: 500; transition: all 0.2s; }
+        .btn-sm { padding: 6px 12px; font-size: 0.8em; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: var(--accent-light); }
+        .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }
+        .btn-ghost:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+        .btn-danger { background: rgba(255,107,107,0.15); color: var(--danger); }
+        .btn-danger:hover { background: rgba(255,107,107,0.25); }
+        .btn-success { background: rgba(100,255,218,0.15); color: var(--success); }
+        .btn-success:hover { background: rgba(100,255,218,0.25); }
+        .btn-lg { padding: 12px 28px; font-size: 1em; font-weight: 600; border-radius: 12px; }
+        /* Auth progress */
+        .auth-progress { margin: 20px 0; }
+        .auth-progress .progress-bar { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; margin: 12px 0; }
+        .auth-progress .progress-fill { height: 100%; background: var(--gradient-1); border-radius: 10px; transition: width 0.5s ease; }
+        .auth-progress .progress-text { font-size: 0.9em; color: var(--text-secondary); text-align: center; }
+        .auth-progress .progress-steps { margin-top: 16px; }
+        .auth-progress .step-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 0.88em; color: var(--text-muted); }
+        .auth-progress .step-item.active { color: var(--accent); }
+        .auth-progress .step-item.done { color: var(--success); }
+        .auth-progress .step-icon { width: 20px; text-align: center; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 32px; width: 560px; max-width: 90vw; max-height: 85vh; overflow-y: auto; animation: modalIn 0.3s ease; }
+        @keyframes modalIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal h2 { font-size: 1.3em; margin-bottom: 24px; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-size: 0.85em; color: var(--text-secondary); margin-bottom: 6px; font-weight: 500; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 14px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; color: var(--text-primary); font-size: 0.9em; font-family: inherit; transition: border-color 0.2s; }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: var(--accent); }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        .form-group .hint { font-size: 0.78em; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 28px; }
+        .chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+        .chart-card h3 { font-size: 1em; font-weight: 600; margin-bottom: 16px; color: var(--text-secondary); }
+        .chart-wrapper { position: relative; height: 280px; }
+        .comparison-table { width: 100%; border-collapse: collapse; background: var(--bg-card); border-radius: 16px; overflow: hidden; border: 1px solid var(--border); }
+        .comparison-table th, .comparison-table td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--border); }
+        .comparison-table th { background: var(--bg-secondary); color: var(--text-secondary); font-size: 0.82em; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+        .comparison-table tr:last-child td { border-bottom: none; }
+        .comparison-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .comparison-table td { font-size: 0.9em; }
+        .highlight { color: var(--success); font-weight: 600; }
+        .info-box { background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.2); border-radius: 12px; padding: 16px 20px; font-size: 0.88em; color: #93c5fd; margin-bottom: 20px; line-height: 1.6; }
+        .info-box code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+        .info-box.warning { background: rgba(255,217,61,0.08); border-color: rgba(255,217,61,0.2); color: var(--warning); }
+        .info-box a { color: #60a5fa; text-decoration: none; }
+        .info-box a:hover { text-decoration: underline; }
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-state p { margin-bottom: 20px; }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; }
+        .toast { padding: 12px 20px; border-radius: 10px; font-size: 0.88em; animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .toast.success { background: #1a3a2a; color: var(--success); border: 1px solid rgba(100,255,218,0.2); }
+        .toast.error { background: #3a1a1a; color: var(--danger); border: 1px solid rgba(255,107,107,0.2); }
+        .toast.info { background: #1a2a3a; color: #60a5fa; border: 1px solid rgba(96,165,250,0.2); }
+        @keyframes toastIn { from { transform: translateX(100px); opacity: 0; } }
+        @keyframes toastOut { to { transform: translateX(100px); opacity: 0; } }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--text-muted); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .token-count { font-family: 'SF Mono', 'Fira Code', monospace; }
+        .settings-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+        .settings-section h3 { font-size: 1em; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .steps { counter-reset: step; }
+        .step { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+        .step::before { counter-increment: step; content: counter(step); display: flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: white; font-size: 0.82em; font-weight: 700; }
+        .step-text { font-size: 0.9em; line-height: 1.6; }
+        .step-text code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; }
+        @media (max-width: 768px) { .container { padding: 16px; } .header h1 { font-size: 1.6em; } .summary-grid { grid-template-columns: repeat(2, 1fr); } .accounts-grid { grid-template-columns: 1fr; } .charts-grid { grid-template-columns: 1fr; } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔥 MiMo Token Plan 用量汇总</h1>
+            <p class="subtitle">聚合管理多个小米 MiMo 账号的 Token Plan 使用额度</p>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-grid">
+            <div class="summary-card orange">
+                <div class="card-icon" style="background:rgba(255,107,53,0.15);">🔑</div>
+                <div class="card-label">账号总数</div>
+                <div class="card-value" id="totalAccounts">0</div>
+                <div class="card-sub">已配置的 MiMo 账号</div>
+            </div>
+            <div class="summary-card green">
+                <div class="card-icon" style="background:rgba(100,255,218,0.15);">📊</div>
+                <div class="card-label">总已用 Credits</div>
+                <div class="card-value" id="totalUsed">0</div>
+                <div class="card-sub">所有账号已用 Credits</div>
+            </div>
+            <div class="summary-card purple">
+                <div class="card-icon" style="background:rgba(168,85,247,0.15);">💎</div>
+                <div class="card-label">总剩余额度</div>
+                <div class="card-value" id="totalRemaining">0</div>
+                <div class="card-sub">所有账号可用 Credits</div>
+            </div>
+            <div class="summary-card blue">
+                <div class="card-icon" style="background:rgba(59,130,246,0.15);">💰</div>
+                <div class="card-label">账户余额</div>
+                <div class="card-value" id="totalBalance">$0</div>
+                <div class="card-sub">现金 + 赠送余额</div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('accounts',this)">📋 账号管理</button>
+            <button class="tab-btn" onclick="switchTab('charts',this)">📈 图表分析</button>
+            <button class="tab-btn" onclick="switchTab('comparison',this)">📊 对比总览</button>
+            <button class="tab-btn" onclick="switchTab('settings',this)">⚙️ 设置</button>
+        </div>
+
+        <!-- Tab: Accounts -->
+        <div class="tab-content active" id="tab-accounts">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button class="btn btn-success btn-lg" onclick="startLogin()" id="btnLogin">🚀 登录账号</button>
+                    <button class="btn btn-primary" onclick="openAddModal()">＋ 手动添加</button>
+                    <button class="btn btn-ghost" onclick="pullFromServer()">📥 从服务器拉取</button>
+                    <button class="btn btn-ghost" onclick="refreshAll()">🔄 全部刷新</button>
+                    <button class="btn btn-ghost" onclick="importData()">📥 导入</button>
+                    <button class="btn btn-ghost" onclick="exportData()">📤 导出</button>
+                </div>
+                <div id="proxyIndicator" style="font-size:0.82em; color:var(--text-muted);"></div>
+            </div>
+            <div class="accounts-grid" id="accountsGrid"></div>
+            <div class="empty-state" id="emptyState">
+                <div class="icon">📭</div>
+                <p>还没有添加任何账号</p>
+                <div style="display:flex; gap:12px; justify-content:center;">
+                    <button class="btn btn-success btn-lg" onclick="startLogin()">🚀 登录账号</button>
+                    <button class="btn btn-primary" onclick="openAddModal()">＋ 手动添加</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Charts -->
+        <div class="tab-content" id="tab-charts">
+            <div class="info-box">💡 图表基于已获取的账号数据生成。请先在「账号管理」中添加并刷新账号数据。</div>
+            <div class="charts-grid">
+                <div class="chart-card"><h3>🍩 各账号用量占比</h3><div class="chart-wrapper"><canvas id="chartPie"></canvas></div></div>
+                <div class="chart-card"><h3>📊 各账号用量对比</h3><div class="chart-wrapper"><canvas id="chartBar"></canvas></div></div>
+                <div class="chart-card"><h3>📈 用量 vs 剩余</h3><div class="chart-wrapper"><canvas id="chartStacked"></canvas></div></div>
+                <div class="chart-card"><h3>🔢 使用率排名</h3><div class="chart-wrapper"><canvas id="chartGauge"></canvas></div></div>
+            </div>
+        </div>
+
+        <!-- Tab: Comparison -->
+        <div class="tab-content" id="tab-comparison">
+            <table class="comparison-table">
+                <thead><tr><th>账号</th><th>Plan</th><th>已用</th><th>总额度</th><th>使用率</th><th>到期时间</th><th>自动续费</th><th>状态</th></tr></thead>
+                <tbody id="comparisonBody"></tbody>
+            </table>
+        </div>
+
+        <!-- Tab: Settings -->
+        <div class="tab-content" id="tab-settings">
+            <div class="settings-section">
+                <h3>🔑 添加新账号</h3>
+
+                <div style="margin-bottom:24px; padding:20px; background:rgba(100,255,218,0.05); border:1px solid rgba(100,255,218,0.15); border-radius:12px;">
+                    <h4 style="margin-bottom:8px; color:var(--success);">推荐方式：点击「🚀 登录账号」</h4>
+                    <p style="font-size:0.9em; color:var(--text-secondary); line-height:1.6;">
+                        面板会自动打开一个浏览器窗口，在里面登录小米账号。<br>
+                        登录成功后，系统自动获取 Cookie 和所有数据，无需手动复制任何东西。
+                    </p>
+                </div>
+
+                <details style="margin-bottom:20px;">
+                    <summary style="cursor:pointer; color:var(--text-secondary); font-size:0.9em; padding:8px 0;">▼ 备选方案：控制台脚本推送</summary>
+                    <div style="padding-top:12px;">
+                        <div class="info-box">适用于「登录账号」按钮不可用的情况。在已登录的 MiMo 页面控制台执行脚本。</div>
+                        <div class="steps">
+                            <div class="step"><div class="step-text">打开 <a href="https://platform.xiaomimimo.com/console/plan-manage" target="_blank" style="color:#60a5fa">plan-manage</a>，确保已登录</div></div>
+                            <div class="step"><div class="step-text">按 <code>F12</code> → <code>Console</code>，粘贴下方脚本执行</div></div>
+                            <div class="step"><div class="step-text">回到面板，点击 <code>📥 从服务器拉取</code></div></div>
+                            <div class="step"><div class="step-text">（可选）点击 <code>🔑 补充Cookie</code> 填入 httpOnly 的 <code>api-platform_serviceToken</code> 以启用自动刷新</div></div>
+                        </div>
+                        <div style="position:relative;">
+                            <pre id="extractScript" style="background:#0a0a1a; border:1px solid var(--border); border-radius:10px; padding:16px; font-size:0.82em; overflow-x:auto; color:#a8d8a8; line-height:1.6;">// MiMo 数据提取 + Cookie 推送（在 MiMo 页面控制台执行）
+(async()=>{
+  const B='https://platform.xiaomimimo.com';
+  const PUSH='http://localhost:3456/api/push';
+  const [p,d,u,k,b]=await Promise.all([
+    fetch(B+'/api/v1/userProfile',{credentials:'include'}).then(r=>r.json()),
+    fetch(B+'/api/v1/tokenPlan/detail',{credentials:'include'}).then(r=>r.json()),
+    fetch(B+'/api/v1/tokenPlan/usage',{credentials:'include'}).then(r=>r.json()),
+    fetch(B+'/api/v1/tokenPlan/apiKey',{credentials:'include'}).then(r=>r.json()),
+    fetch(B+'/api/v1/balance',{credentials:'include'}).then(r=>r.json()),
+  ]);
+  const t=u.data?.usage?.items?.find(i=>i.name==='plan_total_token')||u.data?.usage?.items?.[0];
+  const data={
+    userId:p.data?.userId,email:p.data?.email,
+    planName:d.data?.planName,planCode:d.data?.planCode,
+    periodEnd:d.data?.currentPeriodEnd,autoRenew:d.data?.enableAutoRenew,
+    used:t?.used||0,limit:t?.limit||0,percent:t?.percent||0,
+    balance:b.data,apiKey:k.data?.redactedApiKey,
+    cookie:document.cookie,
+  };
+  const r=await fetch(PUSH,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const j=await r.json();
+  if(j.success){console.log('✅ 已推送！',data);alert('✅ 已推送到面板！');}
+  else{console.error('❌',j.error);alert('❌ 推送失败: '+j.error);}
+})();</pre>
+                            <button class="btn btn-ghost" style="position:absolute;top:8px;right:8px;font-size:0.75em;" onclick="copyExtractScript()">📋 复制</button>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div class="settings-section">
+                <h3>🌐 代理配置</h3>
+                <div class="form-group">
+                    <label>代理服务器地址</label>
+                    <input type="text" id="settingProxyUrl" value="http://localhost:3456" />
+                    <div class="hint">Node.js 代理服务器。启动: <code>node server.js</code></div>
+                </div>
+                <button class="btn btn-primary" onclick="saveSettings()">保存</button>
+                <button class="btn btn-ghost" style="margin-left:8px;" onclick="testConnection()">🔍 测试</button>
+            </div>
+
+            <div class="settings-section">
+                <h3>🗑️ 数据管理</h3>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-danger" onclick="clearAllData()">清除所有数据</button>
+                    <button class="btn btn-ghost" onclick="exportData()">导出备份</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div class="modal-overlay" id="accountModal">
+        <div class="modal">
+            <h2 id="modalTitle">添加 MiMo 账号</h2>
+            <div class="form-group">
+                <label>账号名称</label>
+                <input type="text" id="accName" placeholder="例如: 主账号 / 测试账号" />
+            </div>
+            <div class="form-group">
+                <label>认证方式</label>
+                <select id="accAuthType" onchange="toggleAuthFields()">
+                    <option value="cookie">Cookie (从 MiMo 页面提取)</option>
+                    <option value="manual">手动输入数据</option>
+                </select>
+            </div>
+            <div id="cookieFields">
+                <div class="form-group">
+                    <label>Cookie 字符串</label>
+                    <textarea id="accCookie" placeholder="从 MiMo 控制台脚本提取，或从 DevTools 复制"></textarea>
+                    <div class="hint">格式: userId=xxx; api-platform_slh=xxx; api-platform_ph=xxx</div>
+                </div>
+            </div>
+            <div id="manualFields" style="display:none;">
+                <div class="info-box">💡 手动从 MiMo plan-manage 页面复制数据填入。</div>
+                <div class="form-group"><label>Plan 类型</label><input type="text" id="accPlanName" placeholder="Standard / Lite / Pro / Max" /></div>
+                <div class="form-group"><label>已用 Credits</label><input type="number" id="accUsedTokens" placeholder="例如: 75452201" /></div>
+                <div class="form-group"><label>总额度 Credits</label><input type="number" id="accTotalTokens" placeholder="例如: 200000000" /></div>
+                <div class="form-group"><label>到期时间</label><input type="text" id="accPeriodEnd" placeholder="例如: 2026-05-28 23:59:59" /></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveAccount()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Auth Progress Modal -->
+    <div class="modal-overlay" id="authModal">
+        <div class="modal" style="text-align:center;">
+            <h2 id="authTitle">🚀 登录 MiMo 账号</h2>
+            <div class="auth-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="authProgressFill" style="width:0%"></div>
+                </div>
+                <div class="progress-text" id="authProgressText">正在启动浏览器...</div>
+                <div class="progress-steps" id="authSteps">
+                    <div class="step-item" id="step-launch"><span class="step-icon">🔧</span> 启动浏览器</div>
+                    <div class="step-item" id="step-navigate"><span class="step-icon">🌐</span> 打开登录页面</div>
+                    <div class="step-item" id="step-login"><span class="step-icon">👤</span> 等待用户登录</div>
+                    <div class="step-item" id="step-fetch"><span class="step-icon">📊</span> 获取数据</div>
+                    <div class="step-item" id="step-save"><span class="step-icon">💾</span> 保存账号</div>
+                    <div class="step-item" id="step-done"><span class="step-icon">✅</span> 完成</div>
+                </div>
+            </div>
+            <div class="modal-actions" style="justify-content:center; margin-top:24px;">
+                <button class="btn btn-danger" id="authCancelBtn" onclick="cancelAuth()">✕ 取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const STORAGE_KEY = 'mimo_accounts';
+    const SETTINGS_KEY = 'mimo_dashboard_settings';
+    let accounts = [];
+    let editingId = null;
+    let charts = {};
+    let proxyAvailable = false;
+    let authEventSource = null;
+
+    const MIMO_API = {
+        userProfile: '/api/v1/userProfile',
+        planDetail:  '/api/v1/tokenPlan/detail',
+        planUsage:   '/api/v1/tokenPlan/usage',
+        planApiKey:  '/api/v1/tokenPlan/apiKey',
+        balance:     '/api/v1/balance',
+    };
+
+    async function init() {
+        loadData(); loadSettings(); renderAccounts(); updateSummary(); toggleAuthFields();
+        await checkProxy();
+        // Auto-pull accounts from server if available
+        if(proxyAvailable) { await pullFromServer(); }
+    }
+
+    async function checkProxy() {
+        const url = getProxyUrl();
+        try {
+            const r = await fetch(url + '/api/health', { signal: AbortSignal.timeout(3000) });
+            if (r.ok) { proxyAvailable = true; document.getElementById('proxyIndicator').innerHTML = '<span style="color:var(--success);">●</span> 代理已连接'; }
+        } catch(e) { proxyAvailable = false; document.getElementById('proxyIndicator').innerHTML = '<span style="color:var(--danger);">●</span> 代理未连接'; }
+    }
+
+    function getProxyUrl() { return document.getElementById('settingProxyUrl')?.value || 'http://localhost:3456'; }
+    function loadSettings() { try { const s = JSON.parse(localStorage.getItem(SETTINGS_KEY)); if (s?.proxyUrl) document.getElementById('settingProxyUrl').value = s.proxyUrl; } catch(e){} }
+    function saveSettings() { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ proxyUrl: getProxyUrl() })); checkProxy(); showToast('设置已保存', 'success'); }
+    async function testConnection() { try { await fetch(getProxyUrl() + '/api/health', { signal: AbortSignal.timeout(5000) }); showToast('✅ 代理连接成功！', 'success'); proxyAvailable = true; } catch(e) { showToast('❌ 无法连接到代理', 'error'); } }
+
+    // ── Auth: Playwright browser login ──
+    async function startLogin() {
+        if (!proxyAvailable) { showToast('❌ 代理未连接，请先启动 node server.js', 'error'); return; }
+        const btn = document.getElementById('btnLogin');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>启动中...'; }
+
+        // 显示进度弹窗
+        document.getElementById('authModal').classList.add('show');
+        resetAuthSteps();
+        document.getElementById('step-launch').classList.add('active');
+
+        try {
+            const resp = await fetch(getProxyUrl() + '/api/auth/start', {
+                method: 'POST',
+                signal: AbortSignal.timeout(10000),
+            });
+            const result = await resp.json();
+            if (!result.success) {
+                throw new Error(result.error || '启动失败');
+            }
+            // 开始监听 SSE 进度
+            listenAuthProgress();
+        } catch(e) {
+            showToast('❌ ' + e.message, 'error');
+            document.getElementById('authModal').classList.remove('show');
+            if (btn) { btn.disabled = false; btn.innerHTML = '🚀 登录账号'; }
+        }
+    }
+
+    function listenAuthProgress() {
+        if (authEventSource) authEventSource.close();
+        authEventSource = new EventSource(getProxyUrl() + '/api/auth/sse');
+
+        authEventSource.onmessage = (event) => {
+            try {
+                const state = JSON.parse(event.data);
+                handleAuthUpdate(state);
+            } catch (_) {}
+        };
+
+        authEventSource.onerror = () => {
+            // SSE 断开，可能是完成或出错
+            setTimeout(() => {
+                if (authEventSource) authEventSource.close();
+                authEventSource = null;
+            }, 1000);
+        };
+    }
+
+    function handleAuthUpdate(state) {
+        const { status, message, progress, account } = state;
+
+        // 更新进度条
+        document.getElementById('authProgressFill').style.width = progress + '%';
+        document.getElementById('authProgressText').textContent = message;
+
+        // 更新步骤状态
+        const stepMap = {
+            launching: 'launch',
+            navigating: 'navigate',
+            waiting_login: 'login',
+            fetching: 'fetch',
+            saving: 'save',
+            done: 'done',
+            error: null,
+        };
+
+        const activeStep = stepMap[status];
+        const stepOrder = ['launch', 'navigate', 'login', 'fetch', 'save', 'done'];
+        const activeIdx = stepOrder.indexOf(activeStep);
+
+        stepOrder.forEach((step, idx) => {
+            const el = document.getElementById('step-' + step);
+            if (!el) return;
+            el.className = 'step-item';
+            if (idx < activeIdx) el.classList.add('done');
+            else if (idx === activeIdx) el.classList.add('active');
+        });
+
+        // 完成
+        if (status === 'done' && account) {
+            document.getElementById('authTitle').textContent = '✅ 登录成功！';
+            document.getElementById('authCancelBtn').textContent = '关闭';
+
+            // 保存账号到本地
+            const uid = account.userId;
+            const idx = accounts.findIndex(a => a.userId === uid);
+            const mapped = {
+                id: idx >= 0 ? accounts[idx].id : Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                name: account.email || 'MiMo ' + uid,
+                authType: 'cookie',
+                userId: uid,
+                email: account.email,
+                customName: false,
+                data: account.data,
+                cookieExpires: account.cookieExpires || null,
+                lastUpdated: new Date().toISOString(),
+            };
+            if (idx >= 0) {
+                accounts[idx] = { ...accounts[idx], ...mapped };
+            } else {
+                accounts.push(mapped);
+            }
+            saveData();
+            renderAccounts();
+            updateSummary();
+
+            if (authEventSource) { authEventSource.close(); authEventSource = null; }
+        }
+
+        // 错误
+        if (status === 'error') {
+            document.getElementById('authTitle').textContent = '❌ 登录失败';
+            document.getElementById('authCancelBtn').textContent = '关闭';
+            showToast('❌ ' + message, 'error');
+            if (authEventSource) { authEventSource.close(); authEventSource = null; }
+        }
+
+        // 重置按钮状态
+        if (status === 'done' || status === 'error') {
+            const btn = document.getElementById('btnLogin');
+            if (btn) { btn.disabled = false; btn.innerHTML = '🚀 登录账号'; }
+        }
+    }
+
+    async function cancelAuth() {
+        document.getElementById('authModal').classList.remove('show');
+        if (authEventSource) { authEventSource.close(); authEventSource = null; }
+        try {
+            await fetch(getProxyUrl() + '/api/auth/cancel', { method: 'POST' });
+        } catch (_) {}
+        const btn = document.getElementById('btnLogin');
+        if (btn) { btn.disabled = false; btn.innerHTML = '🚀 登录账号'; }
+    }
+
+    function resetAuthSteps() {
+        document.getElementById('authTitle').textContent = '🚀 登录 MiMo 账号';
+        document.getElementById('authCancelBtn').textContent = '✕ 取消';
+        ['launch','navigate','login','fetch','save','done'].forEach(s => {
+            const el = document.getElementById('step-' + s);
+            if (el) el.className = 'step-item';
+        });
+        document.getElementById('authProgressFill').style.width = '0%';
+        document.getElementById('authProgressText').textContent = '正在启动浏览器...';
+    }
+
+    function loadData() { try { const r = localStorage.getItem(STORAGE_KEY); if (r) accounts = JSON.parse(r); } catch(e){} }
+    function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts)); }
+
+    function showToast(msg, type='info') { const c=document.getElementById('toastContainer'), t=document.createElement('div'); t.className=`toast ${type}`; t.textContent=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
+
+    function switchTab(name, btn) {
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+        document.getElementById(`tab-${name}`).classList.add('active');
+        btn.classList.add('active');
+        if(name==='charts') renderCharts();
+        if(name==='comparison') renderComparison();
+    }
+
+    function openAddModal() {
+        editingId = null;
+        document.getElementById('modalTitle').textContent = '添加 MiMo 账号';
+        document.getElementById('accName').value = '';
+        document.getElementById('accAuthType').value = 'cookie';
+        document.getElementById('accCookie').value = '';
+        document.getElementById('accPlanName').value = '';
+        document.getElementById('accUsedTokens').value = '';
+        document.getElementById('accTotalTokens').value = '';
+        document.getElementById('accPeriodEnd').value = '';
+        toggleAuthFields();
+        document.getElementById('accountModal').classList.add('show');
+    }
+
+    function openEditModal(id) {
+        const acc = accounts.find(a=>a.id===id);
+        if(!acc) return;
+        editingId = id;
+        document.getElementById('modalTitle').textContent = '编辑账号';
+        document.getElementById('accName').value = acc.name||'';
+        document.getElementById('accAuthType').value = acc.authType||'manual';
+        document.getElementById('accCookie').value = acc.cookie||'';
+        document.getElementById('accPlanName').value = acc.data?.planName||'';
+        document.getElementById('accUsedTokens').value = acc.data?.usedTokens||'';
+        document.getElementById('accTotalTokens').value = acc.data?.totalTokens||'';
+        document.getElementById('accPeriodEnd').value = acc.data?.periodEnd||'';
+        toggleAuthFields();
+        document.getElementById('accountModal').classList.add('show');
+    }
+
+    function closeModal() { document.getElementById('accountModal').classList.remove('show'); }
+    function toggleAuthFields() {
+        const t = document.getElementById('accAuthType').value;
+        document.getElementById('cookieFields').style.display = t==='cookie'?'block':'none';
+        document.getElementById('manualFields').style.display = t==='manual'?'block':'none';
+    }
+
+    async function saveAccount() {
+        const name = document.getElementById('accName').value.trim();
+        const authType = document.getElementById('accAuthType').value;
+        if (!name) { showToast('请输入账号名称', 'error'); return; }
+        const newCookie = document.getElementById('accCookie').value.trim();
+        const acc = {
+            id: editingId || Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+            name, authType,
+            cookie: newCookie,
+            data: null, lastUpdated: null,
+        };
+        if (authType === 'manual') {
+            const used = parseFloat(document.getElementById('accUsedTokens').value)||0;
+            const total = parseFloat(document.getElementById('accTotalTokens').value)||0;
+            acc.data = {
+                planName: document.getElementById('accPlanName').value.trim()||'Token Plan',
+                usedTokens: used, totalTokens: total,
+                percent: total>0?used/total:0,
+                periodEnd: document.getElementById('accPeriodEnd').value.trim(),
+            };
+            acc.lastUpdated = new Date().toISOString();
+        }
+        if (editingId) {
+            const idx = accounts.findIndex(a=>a.id===editingId);
+            if(idx>=0) {
+                // Preserve existing data if not provided
+                if(!acc.data) { acc.data=accounts[idx].data; acc.lastUpdated=accounts[idx].lastUpdated; }
+                // Preserve userId/email from existing account
+                acc.userId = accounts[idx].userId;
+                acc.email = accounts[idx].email;
+                accounts[idx]=acc;
+            }
+        } else accounts.push(acc);
+        saveData(); renderAccounts(); updateSummary(); closeModal();
+        showToast(`账号「${name}」已${editingId?'更新':'添加'}`, 'success');
+
+        // Sync cookie to server if provided and proxy available
+        if (newCookie && proxyAvailable) {
+            try {
+                await fetch(getProxyUrl() + '/api/cookie', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: acc.userId,
+                        email: acc.email,
+                        cookie: newCookie,
+                    }),
+                });
+            } catch(e) { /* silent */ }
+        }
+    }
+
+    function deleteAccount(id) {
+        const acc = accounts.find(a=>a.id===id);
+        if(!acc||!confirm(`确定删除「${acc.name}」？`)) return;
+        accounts=accounts.filter(a=>a.id!==id);
+        saveData(); renderAccounts(); updateSummary();
+        showToast(`已删除「${acc.name}」`,'info');
+    }
+
+    // ====== Core: Refresh via server-side stored cookie ======
+    async function refreshAccount(id) {
+        const acc = accounts.find(a=>a.id===id);
+        if(!acc) return;
+        if(acc.authType==='manual') { showToast('手动输入的账号无需刷新','info'); return; }
+        if(!proxyAvailable) { showToast('❌ 代理未连接，请先启动 node server.js','error'); return; }
+
+        const btn = document.querySelector(`[data-refresh-id="${id}"]`);
+        if(btn) btn.innerHTML='<span class="spinner"></span>获取中...';
+
+        try {
+            const proxyUrl = getProxyUrl();
+            // 优先使用服务端存储的 Cookie 刷新
+            const uid = acc.userId || acc.email || id;
+            const resp = await fetch(`${proxyUrl}/api/refresh/${encodeURIComponent(uid)}`, {
+                method: 'POST',
+                signal: AbortSignal.timeout(20000),
+            });
+            const result = await resp.json();
+
+            if (resp.status === 401 || result.error?.includes('401') || result.error?.includes('expired')) {
+                showToast(`❌「${acc.name}」Cookie 已过期，请重新填入 Cookie`, 'error');
+                if(btn) btn.innerHTML='🔄 刷新';
+                return;
+            }
+            if (!result.success) {
+                if (result.error === 'No cookie') {
+                    showToast(`⚠️「${acc.name}」未填入 Cookie，无法自动刷新`, 'warning');
+                } else {
+                    throw new Error(result.error);
+                }
+                if(btn) btn.innerHTML='🔄 刷新';
+                return;
+            }
+
+            // Merge server data into local account
+            if (result.data) {
+                acc.data = { ...acc.data, ...result.data };
+                acc.lastUpdated = new Date().toISOString();
+                if (result.data.email && !acc.customName) acc.name = result.data.email;
+            }
+
+            saveData(); renderAccounts(); updateSummary();
+            showToast(`✅「${acc.name}」数据已更新`,'success');
+        } catch(e) { console.error(e); showToast(`❌ ${e.message}`,'error'); }
+        if(btn) btn.innerHTML='🔄 刷新';
+    }
+
+    // ====== Supplement httpOnly Cookie (api-platform_serviceToken only) ======
+    async function pasteCookie(id) {
+        const acc = accounts.find(a=>a.id===id);
+        if(!acc) return;
+        if(!proxyAvailable) { showToast('❌ 代理未连接，请先启动 node server.js', 'error'); return; }
+        openCookieModal(acc);
+    }
+
+    function openCookieModal(acc) {
+        let modal = document.getElementById('cookieModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'cookieModal';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal">
+                    <h2>🔑 补充 httpOnly Cookie — <span id="cookieModalName"></span></h2>
+                    <div class="info-box">
+                        只需粘贴 <code>api-platform_serviceToken</code> 的 Value 值。<br>
+                        从 DevTools → <code>Application</code> → <code>Cookies</code> → <code>platform.xiaomimimo.com</code> 中找到它，双击 Value 列复制。
+                    </div>
+                    <div class="form-group">
+                        <label>api-platform_serviceToken 的值</label>
+                        <textarea id="cookieInput" rows="4" placeholder='yVHEDQlNiFT1WavLtPFne35pFbMuhNw51...'></textarea>
+                        <div class="hint">粘贴时如果带了外面的引号 " 也没关系，系统会自动处理</div>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-ghost" onclick="document.getElementById('cookieModal').classList.remove('show')">取消</button>
+                        <button class="btn btn-primary" onclick="submitCookie()">✅ 保存并刷新</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(modal);
+        }
+        document.getElementById('cookieModalName').textContent = acc.name;
+        document.getElementById('cookieInput').value = '';
+        document.getElementById('cookieModal').classList.add('show');
+        window._cookieTargetId = acc.id;
+        setTimeout(() => document.getElementById('cookieInput').focus(), 100);
+    }
+
+    async function submitCookie() {
+        let tokenValue = document.getElementById('cookieInput').value.trim();
+        if (!tokenValue) { showToast('请输入 token 值', 'error'); return; }
+        document.getElementById('cookieModal').classList.remove('show');
+
+        const id = window._cookieTargetId;
+        const acc = accounts.find(a=>a.id===id);
+        if(!acc) return;
+
+        // 去掉用户可能粘贴的外层引号，再重新加上
+        tokenValue = tokenValue.replace(/^["']|["']$/g, '');
+
+        showToast('正在保存 Cookie...', 'info');
+        try {
+            const resp = await fetch(getProxyUrl() + '/api/cookie', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: acc.userId,
+                    email: acc.email,
+                    serviceToken: tokenValue,
+                }),
+                signal: AbortSignal.timeout(5000),
+            });
+            const result = await resp.json();
+            if (result.success) {
+                showToast('✅ Cookie 已保存，正在刷新...', 'success');
+                await refreshAccount(id);
+            } else {
+                showToast('❌ 保存失败: ' + result.error, 'error');
+            }
+        } catch(e) {
+            showToast('❌ ' + e.message, 'error');
+        }
+    }
+
+    async function refreshAll() {
+        if(!proxyAvailable) { showToast('❌ 代理未连接', 'error'); return; }
+        showToast('正在通过服务端刷新所有账号...','info');
+        try {
+            const resp = await fetch(getProxyUrl() + '/api/refresh-all', {
+                method: 'POST',
+                signal: AbortSignal.timeout(30000),
+            });
+            const result = await resp.json();
+            const results = result.results || {};
+            let success = 0, failed = 0;
+            for (const [uid, r] of Object.entries(results)) {
+                const acc = accounts.find(a => a.userId === uid || a.email === uid);
+                if (r.success && acc) {
+                    acc.data = { ...acc.data, ...r.data };
+                    acc.lastUpdated = new Date().toISOString();
+                    success++;
+                } else {
+                    failed++;
+                }
+            }
+            saveData(); renderAccounts(); updateSummary();
+            showToast(`✅ 刷新完成: ${success} 成功, ${failed} 失败`, success > 0 ? 'success' : 'error');
+        } catch(e) {
+            showToast('❌ 刷新失败: ' + e.message, 'error');
+        }
+    }
+
+    // ====== Pull from proxy server ======
+    async function pullFromServer() {
+        if(!proxyAvailable) { showToast('❌ 代理未连接，请先启动 node server.js', 'error'); return; }
+        try {
+            const resp = await fetch(getProxyUrl() + '/api/accounts', { signal: AbortSignal.timeout(5000) });
+            const result = await resp.json();
+            const serverAccounts = result.accounts || [];
+            if(!serverAccounts.length) { showToast('服务器暂无账号数据，请先在 MiMo 页面执行脚本', 'info'); return; }
+
+            let added = 0, updated = 0;
+            serverAccounts.forEach(sa => {
+                // 服务端可能存有 data 子对象（新版）或平铺字段（旧版），兼容两种
+                const sd = sa.data || sa;
+                const idx = accounts.findIndex(a => a.userId === sa.userId || a.email === sa.email);
+                const mapped = {
+                    id: idx >= 0 ? accounts[idx].id : Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                    name: (idx >= 0 && accounts[idx].customName) ? accounts[idx].name : (sa.email || 'MiMo ' + sa.userId),
+                    authType: 'cookie',
+                    userId: sa.userId,
+                    email: sa.email,
+                    customName: idx >= 0 ? (accounts[idx].customName || false) : false,
+                    cookieExpires: sa.cookieExpires || null,
+                    data: {
+                        planName: sd.planName || '-',
+                        planCode: sd.planCode || '-',
+                        usedTokens: sd.usedTokens || sd.used || 0,
+                        totalTokens: sd.totalTokens || sd.limit || 0,
+                        percent: sd.percent || 0,
+                        periodEnd: sd.periodEnd || null,
+                        autoRenew: sd.autoRenew || false,
+                        balance: sd.balance || null,
+                        userId: sa.userId,
+                        email: sa.email,
+                    },
+                    lastUpdated: sa.lastRefreshed || sa.lastPushed || new Date().toISOString(),
+                };
+                if(idx >= 0) {
+                    // 保留本地 id 和 customName，合并服务端最新数据
+                    accounts[idx].data = mapped.data;
+                    accounts[idx].lastUpdated = mapped.lastUpdated;
+                    if (mapped.cookieExpires) accounts[idx].cookieExpires = mapped.cookieExpires;
+                    if (mapped.data.email && !accounts[idx].customName) accounts[idx].name = mapped.name;
+                    updated++;
+                } else {
+                    accounts.push(mapped);
+                    added++;
+                }
+            });
+
+            saveData(); renderAccounts(); updateSummary();
+            showToast(`✅ 已拉取: ${added} 个新账号, ${updated} 个更新`, 'success');
+        } catch(e) {
+            console.error(e);
+            showToast('❌ 拉取失败: ' + e.message, 'error');
+        }
+    }
+
+    // ====== Rendering ======
+    function renderAccounts() {
+        const grid = document.getElementById('accountsGrid'), empty = document.getElementById('emptyState');
+        if(!accounts.length) { grid.innerHTML=''; empty.style.display='block'; return; }
+        empty.style.display='none';
+
+        grid.innerHTML = accounts.map(acc => {
+            const d = acc.data||{};
+            const used=d.usedTokens||0, total=d.totalTokens||0;
+            const pct = total>0?Math.min(used/total*100,100):(d.percent*100)||0;
+            const barClass = pct>80?'danger':pct>50?'warning':'safe';
+            const remaining = total-used;
+            const status = d.expired?'expired':!total?'unknown':'active';
+            const badgeClass = status==='active'?'badge-active':status==='expired'?'badge-expired':'badge-unknown';
+            const badgeText = status==='active'?'正常':status==='expired'?'已过期':'未知';
+            const planClass = (d.planCode||'').split(':')[0];
+            const bal = d.balance ? `$${parseFloat(d.balance.balance||0).toFixed(2)}` : '-';
+
+            return `<div class="account-card">
+                <div class="account-header">
+                    <div>
+                        <div class="account-name">${esc(acc.name)}</div>
+                        <div class="account-meta">${acc.authType==='cookie'?'🍪':'✏️'} ${d.userId?'ID: '+d.userId:''} ${acc.lastUpdated?' · '+timeAgo(acc.lastUpdated):''}</div>
+                    </div>
+                    <span class="badge ${badgeClass}">${badgeText}</span>
+                </div>
+                ${d.planName?`<div class="plan-info">
+                    <span class="plan-badge ${planClass}">${esc(d.planName)}</span>
+                    <div class="plan-detail"><div class="name">${esc(d.planCode||'')} ${d.autoRenew?'🔄 自动续费':''}</div><div class="desc">到期: ${d.periodEnd?fmtDate(d.periodEnd):'-'}</div></div>
+                </div>`:''}
+                ${total>0?`<div class="usage-bar-container">
+                    <div class="usage-bar-label"><span>已用 <strong class="token-count">${fmtT(used)}</strong></span><span style="color:var(--text-secondary)">/ ${fmtT(total)}</span></div>
+                    <div class="usage-bar"><div class="usage-bar-fill ${barClass}" style="width:${pct}%"></div></div>
+                </div>`:''}
+                <div class="account-details">
+                    <div class="detail-item"><span class="detail-label">使用率</span><span class="detail-value" style="color:${pct>80?'var(--danger)':pct>50?'var(--warning)':'var(--success)'}">${pct.toFixed(1)}%</span></div>
+                    <div class="detail-item"><span class="detail-label">剩余</span><span class="detail-value token-count">${total>0?fmtT(remaining):'-'}</span></div>
+                    <div class="detail-item"><span class="detail-label">账户余额</span><span class="detail-value">${bal}</span></div>
+                    <div class="detail-item"><span class="detail-label">到期</span><span class="detail-value">${d.periodEnd?fmtDateS(d.periodEnd):'-'}</span></div>
+                    ${acc.cookieExpires?`<div class="detail-item"><span class="detail-label">Cookie过期</span><span class="detail-value" style="color:${new Date(acc.cookieExpires)<new Date()?'var(--danger)':'var(--text-primary)'}">${fmtDateS(acc.cookieExpires)}</span></div>`:''}
+                </div>
+                <div class="account-actions">
+                    <button class="btn btn-sm btn-primary" data-refresh-id="${acc.id}" onclick="refreshAccount('${acc.id}')">🔄 刷新</button>
+                    <button class="btn btn-sm btn-ghost" onclick="pasteCookie('${acc.id}')">🔑 补充Cookie</button>
+                    <button class="btn btn-sm btn-ghost" onclick="openEditModal('${acc.id}')">✏️ 编辑</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteAccount('${acc.id}')">🗑️ 删除</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function updateSummary() {
+        let u=0, r=0, b=0;
+        accounts.forEach(a=>{ if(a.data){ u+=a.data.usedTokens||0; r+=(a.data.totalTokens||0)-(a.data.usedTokens||0); if(a.data.balance) b+=parseFloat(a.data.balance.balance||0); } });
+        document.getElementById('totalAccounts').textContent=accounts.length;
+        document.getElementById('totalUsed').textContent=fmtT(u);
+        document.getElementById('totalRemaining').textContent=fmtT(r);
+        document.getElementById('totalBalance').textContent='$'+b.toFixed(2);
+    }
+
+    // ====== Charts ======
+    function renderCharts() {
+        const da=accounts.filter(a=>a.data&&a.data.totalTokens>0);
+        if(!da.length) return;
+        const names=da.map(a=>a.name), used=da.map(a=>a.data.usedTokens||0), rem=da.map(a=>(a.data.totalTokens||0)-(a.data.usedTokens||0));
+        const cs=['#ff6b35','#64ffda','#a855f7','#3b82f6','#f59e0b','#ef4444','#10b981','#8b5cf6','#06b6d4','#f97316'];
+        Object.values(charts).forEach(c=>c.destroy?.());
+        const o={responsive:true,maintainAspectRatio:false};
+        charts.pie=new Chart(document.getElementById('chartPie').getContext('2d'),{type:'doughnut',data:{labels:names,datasets:[{data:used,backgroundColor:cs.slice(0,names.length),borderColor:'transparent'}]},options:{...o,plugins:{legend:{position:'bottom',labels:{color:'#8892b0',padding:16,usePointStyle:true}},tooltip:{callbacks:{label:c=>`${c.label}: ${fmtT(c.raw)} (${((c.raw/used.reduce((a,b)=>a+b,0))*100).toFixed(1)}%)`}}}}});
+        charts.bar=new Chart(document.getElementById('chartBar').getContext('2d'),{type:'bar',data:{labels:names,datasets:[{data:used,backgroundColor:'rgba(255,107,53,0.7)',borderRadius:6,borderSkipped:false}]},options:{...o,scales:{y:{ticks:{color:'#5a6380',callback:v=>fmtT(v)},grid:{color:'rgba(255,255,255,0.05)'}},x:{ticks:{color:'#8892b0'},grid:{display:false}}},plugins:{legend:{display:false}}}});
+        charts.stacked=new Chart(document.getElementById('chartStacked').getContext('2d'),{type:'bar',data:{labels:names,datasets:[{label:'已用',data:used,backgroundColor:'rgba(255,107,53,0.7)',borderSkipped:false},{label:'剩余',data:rem,backgroundColor:'rgba(100,255,218,0.5)',borderSkipped:false}]},options:{...o,scales:{y:{stacked:true,ticks:{color:'#5a6380',callback:v=>fmtT(v)},grid:{color:'rgba(255,255,255,0.05)'}},x:{stacked:true,ticks:{color:'#8892b0'},grid:{display:false}}},plugins:{legend:{labels:{color:'#8892b0',usePointStyle:true}}}}});
+        const rates=da.map(a=>(a.data.usedTokens||0)/(a.data.totalTokens||1)*100);
+        charts.gauge=new Chart(document.getElementById('chartGauge').getContext('2d'),{type:'bar',data:{labels:names,datasets:[{data:rates,backgroundColor:rates.map(r=>r>80?'rgba(255,107,107,0.7)':r>50?'rgba(255,217,61,0.7)':'rgba(100,255,218,0.7)'),borderRadius:6,borderSkipped:false}]},options:{indexAxis:'y',...o,scales:{x:{max:100,ticks:{color:'#5a6380',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,0.05)'}},y:{ticks:{color:'#8892b0'},grid:{display:false}}},plugins:{legend:{display:false}}}});
+    }
+
+    // ====== Comparison ======
+    function renderComparison() {
+        const tb=document.getElementById('comparisonBody');
+        if(!accounts.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">暂无数据</td></tr>';return;}
+        tb.innerHTML=accounts.map(a=>{
+            const d=a.data||{}, u=d.usedTokens||0, t=d.totalTokens||0;
+            const p=t>0?u/t*100:(d.percent*100)||0;
+            const s=d.expired?'已过期':!t?'未知':'正常';
+            const sc=s==='正常'?'var(--success)':s==='已过期'?'var(--danger)':'var(--warning)';
+            return `<tr><td><strong>${esc(a.name)}</strong></td><td>${esc(d.planName||'-')}</td><td class="token-count">${fmtT(u)}</td><td class="token-count">${t>0?fmtT(t):'-'}</td><td class="highlight">${t>0?p.toFixed(1)+'%':'-'}</td><td>${d.periodEnd?fmtDateS(d.periodEnd):'-'}</td><td>${d.autoRenew?'✅':'❌'}</td><td style="color:${sc}">${s}</td></tr>`;
+        }).join('');
+    }
+
+    // ====== Import/Export ======
+    function exportData() {
+        const b=new Blob([JSON.stringify({accounts,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
+        const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`mimo-token-${new Date().toISOString().slice(0,10)}.json`; a.click();
+        showToast('数据已导出','success');
+    }
+    function importData() {
+        const i=document.createElement('input'); i.type='file'; i.accept='.json';
+        i.onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());if(!j.accounts)throw new Error('无效格式');
+        if(confirm(`导入 ${j.accounts.length} 个账号，覆盖？`))accounts=j.accounts; else j.accounts.forEach(x=>{const idx=accounts.findIndex(a=>a.name===x.name);if(idx>=0)accounts[idx]={...accounts[idx],...x};else accounts.push(x);});
+        saveData();renderAccounts();updateSummary();showToast('导入成功','success');}catch(e){showToast('导入失败','error');}};
+        i.click();
+    }
+    function clearAllData() { if(!confirm('确定清除所有数据？'))return; accounts=[]; saveData(); renderAccounts(); updateSummary(); showToast('已清除','info'); }
+
+    // ====== Helpers ======
+    function fmtT(n) { if(n==null||isNaN(n))return'-'; if(n>=1e9)return(n/1e9).toFixed(2)+'B'; if(n>=1e6)return(n/1e6).toFixed(2)+'M'; if(n>=1e3)return(n/1e3).toFixed(1)+'K'; return n.toFixed(0); }
+    function fmtDate(s) { try{return new Date(s).toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return s;} }
+    function fmtDateS(s) { try{return new Date(s).toLocaleDateString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit'});}catch(e){return s;} }
+    function timeAgo(s) { const d=Date.now()-new Date(s).getTime(); if(d<60000)return'刚刚'; if(d<3600000)return Math.floor(d/60000)+'分钟前'; if(d<86400000)return Math.floor(d/3600000)+'小时前'; return Math.floor(d/86400000)+'天前'; }
+    function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+    function copyExtractScript() { navigator.clipboard.writeText(document.getElementById('extractScript').textContent).then(()=>showToast('✅ 脚本已复制','success')); }
+
+    init();
+    </script>
+</body>
+</html>
