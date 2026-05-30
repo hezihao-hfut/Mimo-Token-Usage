@@ -51,7 +51,7 @@ node server.js
 |------|------|
 | `/api/v1/userProfile` | 用户信息（userId, email） |
 | `/api/v1/tokenPlan/detail` | Plan 详情（planName, planCode, 到期时间, 自动续费） |
-| `/api/v1/tokenPlan/usage` | 用量数据（used, limit, percent） |
+| `/api/v1/tokenPlan/usage` | 用量数据（used, limit, percent，含补偿积分 compensation_total_token） |
 | `/api/v1/tokenPlan/apiKey` | API Key 信息 |
 | `/api/v1/tokenPlan/list` | 所有可选套餐列表 |
 | `/api/v1/balance` | 账户余额（现金 + 赠送） |

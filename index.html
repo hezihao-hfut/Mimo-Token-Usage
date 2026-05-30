@@ -179,6 +179,12 @@
                 <div class="card-value" id="totalBalance">$0</div>
                 <div class="card-sub">现金 + 赠送余额</div>
             </div>
+            <div class="summary-card" style="border-left:3px solid #f59e0b;">
+                <div class="card-icon" style="background:rgba(245,158,11,0.15);">🎁</div>
+                <div class="card-label">总补偿积分</div>
+                <div class="card-value" id="totalCompUsed">0</div>
+                <div class="card-sub">补偿积分已用 / 总额</div>
+            </div>
         </div>
 
         <!-- Tabs -->
@@ -195,7 +201,6 @@
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
                     <button class="btn btn-success btn-lg" onclick="startLogin()" id="btnLogin">🚀 登录账号</button>
                     <button class="btn btn-primary" onclick="openAddModal()">＋ 手动添加</button>
-                    <button class="btn btn-ghost" onclick="pullFromServer()">📥 从服务器拉取</button>
                     <button class="btn btn-ghost" onclick="refreshAll()">🔄 全部刷新</button>
                     <button class="btn btn-ghost" onclick="importData()">📥 导入</button>
                     <button class="btn btn-ghost" onclick="exportData()">📤 导出</button>
@@ -227,7 +232,7 @@
         <!-- Tab: Comparison -->
         <div class="tab-content" id="tab-comparison">
             <table class="comparison-table">
-                <thead><tr><th>账号</th><th>Plan</th><th>已用</th><th>总额度</th><th>使用率</th><th>到期时间</th><th>自动续费</th><th>状态</th></tr></thead>
+                <thead><tr><th>账号</th><th>Plan</th><th>已用</th><th>总额度</th><th>补偿积分已用</th><th>补偿积分总额</th><th>使用率</th><th>到期时间</th><th>自动续费</th><th>状态</th></tr></thead>
                 <tbody id="comparisonBody"></tbody>
             </table>
         </div>
@@ -245,46 +250,6 @@
                     </p>
                 </div>
 
-                <details style="margin-bottom:20px;">
-                    <summary style="cursor:pointer; color:var(--text-secondary); font-size:0.9em; padding:8px 0;">▼ 备选方案：控制台脚本推送</summary>
-                    <div style="padding-top:12px;">
-                        <div class="info-box">适用于「登录账号」按钮不可用的情况。在已登录的 MiMo 页面控制台执行脚本。</div>
-                        <div class="steps">
-                            <div class="step"><div class="step-text">打开 <a href="https://platform.xiaomimimo.com/console/plan-manage" target="_blank" style="color:#60a5fa">plan-manage</a>，确保已登录</div></div>
-                            <div class="step"><div class="step-text">按 <code>F12</code> → <code>Console</code>，粘贴下方脚本执行</div></div>
-                            <div class="step"><div class="step-text">回到面板，点击 <code>📥 从服务器拉取</code></div></div>
-                            <div class="step"><div class="step-text">（可选）点击 <code>🔑 补充Cookie</code> 填入 httpOnly 的 <code>api-platform_serviceToken</code> 以启用自动刷新</div></div>
-                        </div>
-                        <div style="position:relative;">
-                            <pre id="extractScript" style="background:#0a0a1a; border:1px solid var(--border); border-radius:10px; padding:16px; font-size:0.82em; overflow-x:auto; color:#a8d8a8; line-height:1.6;">// MiMo 数据提取 + Cookie 推送（在 MiMo 页面控制台执行）
-(async()=>{
-  const B='https://platform.xiaomimimo.com';
-  const PUSH='http://localhost:3456/api/push';
-  const [p,d,u,k,b]=await Promise.all([
-    fetch(B+'/api/v1/userProfile',{credentials:'include'}).then(r=>r.json()),
-    fetch(B+'/api/v1/tokenPlan/detail',{credentials:'include'}).then(r=>r.json()),
-    fetch(B+'/api/v1/tokenPlan/usage',{credentials:'include'}).then(r=>r.json()),
-    fetch(B+'/api/v1/tokenPlan/apiKey',{credentials:'include'}).then(r=>r.json()),
-    fetch(B+'/api/v1/balance',{credentials:'include'}).then(r=>r.json()),
-  ]);
-  const t=u.data?.usage?.items?.find(i=>i.name==='plan_total_token')||u.data?.usage?.items?.[0];
-  const data={
-    userId:p.data?.userId,email:p.data?.email,
-    planName:d.data?.planName,planCode:d.data?.planCode,
-    periodEnd:d.data?.currentPeriodEnd,autoRenew:d.data?.enableAutoRenew,
-    used:t?.used||0,limit:t?.limit||0,percent:t?.percent||0,
-    balance:b.data,apiKey:k.data?.redactedApiKey,
-    cookie:document.cookie,
-  };
-  const r=await fetch(PUSH,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-  const j=await r.json();
-  if(j.success){console.log('✅ 已推送！',data);alert('✅ 已推送到面板！');}
-  else{console.error('❌',j.error);alert('❌ 推送失败: '+j.error);}
-})();</pre>
-                            <button class="btn btn-ghost" style="position:absolute;top:8px;right:8px;font-size:0.75em;" onclick="copyExtractScript()">📋 复制</button>
-                        </div>
-                    </div>
-                </details>
             </div>
 
             <div class="settings-section">
@@ -296,6 +261,40 @@
                 </div>
                 <button class="btn btn-primary" onclick="saveSettings()">保存</button>
                 <button class="btn btn-ghost" style="margin-left:8px;" onclick="testConnection()">🔍 测试</button>
+            </div>
+
+            <div class="settings-section">
+                <h3>🔄 自动刷新</h3>
+                <p style="font-size:0.88em; color:var(--text-secondary); margin-bottom:16px; line-height:1.6;">
+                    定期调用 MiMo API 保持 Cookie 会话活跃，避免频繁手动登录。<br>
+                    建议间隔 4-6 小时，过短可能触发风控。
+                </p>
+                <div class="form-group">
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                        <input type="checkbox" id="autoRefreshEnabled" onchange="toggleAutoRefreshUI()" style="width:18px; height:18px;" />
+                        <span>启用自动刷新</span>
+                    </label>
+                </div>
+                <div id="autoRefreshConfig" style="display:none;">
+                    <div class="form-group">
+                        <label>刷新间隔（小时）</label>
+                        <select id="autoRefreshInterval">
+                            <option value="2">2 小时</option>
+                            <option value="4" selected>4 小时（推荐）</option>
+                            <option value="6">6 小时</option>
+                            <option value="8">8 小时</option>
+                            <option value="12">12 小时</option>
+                            <option value="24">24 小时</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-bottom:16px;">
+                        <button class="btn btn-primary" onclick="saveAutoRefreshConfig()">💾 保存配置</button>
+                        <button class="btn btn-success" onclick="triggerAutoRefresh()">🔄 立即刷新</button>
+                    </div>
+                </div>
+                <div id="autoRefreshStatus" style="padding:12px; background:rgba(255,255,255,0.03); border-radius:8px; font-size:0.85em;">
+                    <div style="color:var(--text-muted);">加载中...</div>
+                </div>
             </div>
 
             <div class="settings-section">
@@ -390,8 +389,7 @@
     async function init() {
         loadData(); loadSettings(); renderAccounts(); updateSummary(); toggleAuthFields();
         await checkProxy();
-        // Auto-pull accounts from server if available
-        if(proxyAvailable) { await pullFromServer(); }
+        await loadAutoRefreshStatus();
     }
 
     async function checkProxy() {
@@ -406,6 +404,112 @@
     function loadSettings() { try { const s = JSON.parse(localStorage.getItem(SETTINGS_KEY)); if (s?.proxyUrl) document.getElementById('settingProxyUrl').value = s.proxyUrl; } catch(e){} }
     function saveSettings() { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ proxyUrl: getProxyUrl() })); checkProxy(); showToast('设置已保存', 'success'); }
     async function testConnection() { try { await fetch(getProxyUrl() + '/api/health', { signal: AbortSignal.timeout(5000) }); showToast('✅ 代理连接成功！', 'success'); proxyAvailable = true; } catch(e) { showToast('❌ 无法连接到代理', 'error'); } }
+
+    // ── Auto Refresh ──
+    async function loadAutoRefreshStatus() {
+        if (!proxyAvailable) return;
+        try {
+            const resp = await fetch(getProxyUrl() + '/api/auto-refresh/status', { signal: AbortSignal.timeout(3000) });
+            if (resp.ok) {
+                const status = await resp.json();
+                updateAutoRefreshUI(status);
+            }
+        } catch(e) { /* silent */ }
+    }
+
+    function updateAutoRefreshUI(status) {
+        const checkbox = document.getElementById('autoRefreshEnabled');
+        const config = document.getElementById('autoRefreshConfig');
+        const statusDiv = document.getElementById('autoRefreshStatus');
+        const intervalSelect = document.getElementById('autoRefreshInterval');
+
+        if (checkbox) checkbox.checked = status.enabled;
+        if (config) config.style.display = status.enabled ? 'block' : 'none';
+        if (intervalSelect) intervalSelect.value = status.intervalHours;
+
+        if (statusDiv) {
+            let html = '';
+            if (status.enabled) {
+                html += `<div style="color:var(--success); margin-bottom:8px;">✅ 自动刷新已启用</div>`;
+                html += `<div>刷新间隔: <strong>${status.intervalHours} 小时</strong></div>`;
+                if (status.lastRefreshTime) {
+                    html += `<div>上次刷新: ${timeAgo(status.lastRefreshTime)}</div>`;
+                    if (status.lastRefreshResult) {
+                        const r = status.lastRefreshResult;
+                        html += `<div>结果: ${r.success} 成功, ${r.failed} 失败 / 共 ${r.total} 个</div>`;
+                    }
+                }
+                if (status.nextRefreshTime) {
+                    html += `<div style="margin-top:8px; color:var(--accent);">⏰ 下次刷新: ${fmtDate(status.nextRefreshTime)}</div>`;
+                }
+            } else {
+                html = '<div style="color:var(--text-muted);">⏸️ 自动刷新已禁用</div>';
+            }
+            statusDiv.innerHTML = html;
+        }
+    }
+
+    function toggleAutoRefreshUI() {
+        const checkbox = document.getElementById('autoRefreshEnabled');
+        const config = document.getElementById('autoRefreshConfig');
+        if (config) config.style.display = checkbox.checked ? 'block' : 'none';
+    }
+
+    async function saveAutoRefreshConfig() {
+        if (!proxyAvailable) { showToast('❌ 代理未连接', 'error'); return; }
+        const enabled = document.getElementById('autoRefreshEnabled').checked;
+        const interval = parseInt(document.getElementById('autoRefreshInterval').value);
+        try {
+            const resp = await fetch(getProxyUrl() + '/api/auto-refresh/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled, intervalHours: interval }),
+                signal: AbortSignal.timeout(5000),
+            });
+            if (resp.ok) {
+                const result = await resp.json();
+                updateAutoRefreshUI(result);
+                showToast(`✅ 自动刷新配置已保存`, 'success');
+            } else {
+                throw new Error('保存失败');
+            }
+        } catch(e) {
+            showToast('❌ ' + e.message, 'error');
+        }
+    }
+
+    async function triggerAutoRefresh() {
+        if (!proxyAvailable) { showToast('❌ 代理未连接', 'error'); return; }
+        showToast('🔄 正在刷新所有账号...', 'info');
+        try {
+            const resp = await fetch(getProxyUrl() + '/api/auto-refresh/trigger', {
+                method: 'POST',
+                signal: AbortSignal.timeout(60000),
+            });
+            if (resp.ok) {
+                const result = await resp.json();
+                showToast(`✅ 刷新完成: ${result.success} 成功, ${result.failed} 失败`, 'success');
+                // 重新加载账号数据
+                await refreshAllLocal();
+                await loadAutoRefreshStatus();
+            } else {
+                throw new Error('刷新失败');
+            }
+        } catch(e) {
+            showToast('❌ ' + e.message, 'error');
+        }
+    }
+
+    async function refreshAllLocal() {
+        // 从服务器获取最新数据并更新本地
+        try {
+            const resp = await fetch(getProxyUrl() + '/api/health', { signal: AbortSignal.timeout(3000) });
+            if (resp.ok) {
+                // 重新加载页面数据
+                location.reload();
+            }
+        } catch(e) { /* silent */ }
+    }
 
     // ── Auth: Playwright browser login ──
     async function startLogin() {
@@ -821,63 +925,6 @@
         }
     }
 
-    // ====== Pull from proxy server ======
-    async function pullFromServer() {
-        if(!proxyAvailable) { showToast('❌ 代理未连接，请先启动 node server.js', 'error'); return; }
-        try {
-            const resp = await fetch(getProxyUrl() + '/api/accounts', { signal: AbortSignal.timeout(5000) });
-            const result = await resp.json();
-            const serverAccounts = result.accounts || [];
-            if(!serverAccounts.length) { showToast('服务器暂无账号数据，请先在 MiMo 页面执行脚本', 'info'); return; }
-
-            let added = 0, updated = 0;
-            serverAccounts.forEach(sa => {
-                // 服务端可能存有 data 子对象（新版）或平铺字段（旧版），兼容两种
-                const sd = sa.data || sa;
-                const idx = accounts.findIndex(a => a.userId === sa.userId || a.email === sa.email);
-                const mapped = {
-                    id: idx >= 0 ? accounts[idx].id : Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-                    name: (idx >= 0 && accounts[idx].customName) ? accounts[idx].name : (sa.email || 'MiMo ' + sa.userId),
-                    authType: 'cookie',
-                    userId: sa.userId,
-                    email: sa.email,
-                    customName: idx >= 0 ? (accounts[idx].customName || false) : false,
-                    cookieExpires: sa.cookieExpires || null,
-                    data: {
-                        planName: sd.planName || '-',
-                        planCode: sd.planCode || '-',
-                        usedTokens: sd.usedTokens || sd.used || 0,
-                        totalTokens: sd.totalTokens || sd.limit || 0,
-                        percent: sd.percent || 0,
-                        periodEnd: sd.periodEnd || null,
-                        autoRenew: sd.autoRenew || false,
-                        balance: sd.balance || null,
-                        userId: sa.userId,
-                        email: sa.email,
-                    },
-                    lastUpdated: sa.lastRefreshed || sa.lastPushed || new Date().toISOString(),
-                };
-                if(idx >= 0) {
-                    // 保留本地 id 和 customName，合并服务端最新数据
-                    accounts[idx].data = mapped.data;
-                    accounts[idx].lastUpdated = mapped.lastUpdated;
-                    if (mapped.cookieExpires) accounts[idx].cookieExpires = mapped.cookieExpires;
-                    if (mapped.data.email && !accounts[idx].customName) accounts[idx].name = mapped.name;
-                    updated++;
-                } else {
-                    accounts.push(mapped);
-                    added++;
-                }
-            });
-
-            saveData(); renderAccounts(); updateSummary();
-            showToast(`✅ 已拉取: ${added} 个新账号, ${updated} 个更新`, 'success');
-        } catch(e) {
-            console.error(e);
-            showToast('❌ 拉取失败: ' + e.message, 'error');
-        }
-    }
-
     // ====== Rendering ======
     function renderAccounts() {
         const grid = document.getElementById('accountsGrid'), empty = document.getElementById('emptyState');
@@ -912,6 +959,10 @@
                     <div class="usage-bar-label"><span>已用 <strong class="token-count">${fmtT(used)}</strong></span><span style="color:var(--text-secondary)">/ ${fmtT(total)}</span></div>
                     <div class="usage-bar"><div class="usage-bar-fill ${barClass}" style="width:${pct}%"></div></div>
                 </div>`:''}
+                ${d.compTotalTokens>0?`<div class="usage-bar-container">
+                    <div class="usage-bar-label"><span>🎁 补偿积分已用 <strong class="token-count">${fmtT(d.compUsedTokens||0)}</strong></span><span style="color:var(--text-secondary)">/ ${fmtT(d.compTotalTokens)}</span></div>
+                    <div class="usage-bar"><div class="usage-bar-fill" style="width:${d.compTotalTokens>0?Math.min((d.compUsedTokens||0)/d.compTotalTokens*100,100).toFixed(1):0}%; background:linear-gradient(90deg,#f59e0b,#fbbf24);"></div></div>
+                </div>`:''}
                 <div class="account-details">
                     <div class="detail-item"><span class="detail-label">使用率</span><span class="detail-value" style="color:${pct>80?'var(--danger)':pct>50?'var(--warning)':'var(--success)'}">${pct.toFixed(1)}%</span></div>
                     <div class="detail-item"><span class="detail-label">剩余</span><span class="detail-value token-count">${total>0?fmtT(remaining):'-'}</span></div>
@@ -930,12 +981,13 @@
     }
 
     function updateSummary() {
-        let u=0, r=0, b=0;
-        accounts.forEach(a=>{ if(a.data){ u+=a.data.usedTokens||0; r+=(a.data.totalTokens||0)-(a.data.usedTokens||0); if(a.data.balance) b+=parseFloat(a.data.balance.balance||0); } });
+        let u=0, r=0, b=0, cu=0, ct=0;
+        accounts.forEach(a=>{ if(a.data){ u+=a.data.usedTokens||0; r+=(a.data.totalTokens||0)-(a.data.usedTokens||0); if(a.data.balance) b+=parseFloat(a.data.balance.balance||0); cu+=a.data.compUsedTokens||0; ct+=a.data.compTotalTokens||0; } });
         document.getElementById('totalAccounts').textContent=accounts.length;
         document.getElementById('totalUsed').textContent=fmtT(u);
         document.getElementById('totalRemaining').textContent=fmtT(r);
         document.getElementById('totalBalance').textContent='$'+b.toFixed(2);
+        document.getElementById('totalCompUsed').textContent=ct>0?`${fmtT(cu)} / ${fmtT(ct)}`:'-';
     }
 
     // ====== Charts ======
@@ -956,13 +1008,14 @@
     // ====== Comparison ======
     function renderComparison() {
         const tb=document.getElementById('comparisonBody');
-        if(!accounts.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">暂无数据</td></tr>';return;}
+        if(!accounts.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:40px;">暂无数据</td></tr>';return;}
         tb.innerHTML=accounts.map(a=>{
             const d=a.data||{}, u=d.usedTokens||0, t=d.totalTokens||0;
             const p=t>0?u/t*100:(d.percent*100)||0;
             const s=d.expired?'已过期':!t?'未知':'正常';
             const sc=s==='正常'?'var(--success)':s==='已过期'?'var(--danger)':'var(--warning)';
-            return `<tr><td><strong>${esc(a.name)}</strong></td><td>${esc(d.planName||'-')}</td><td class="token-count">${fmtT(u)}</td><td class="token-count">${t>0?fmtT(t):'-'}</td><td class="highlight">${t>0?p.toFixed(1)+'%':'-'}</td><td>${d.periodEnd?fmtDateS(d.periodEnd):'-'}</td><td>${d.autoRenew?'✅':'❌'}</td><td style="color:${sc}">${s}</td></tr>`;
+            const cu=d.compUsedTokens||0, ct=d.compTotalTokens||0;
+            return `<tr><td><strong>${esc(a.name)}</strong></td><td>${esc(d.planName||'-')}</td><td class="token-count">${fmtT(u)}</td><td class="token-count">${t>0?fmtT(t):'-'}</td><td class="token-count">${ct>0?fmtT(cu):'-'}</td><td class="token-count">${ct>0?fmtT(ct):'-'}</td><td class="highlight">${t>0?p.toFixed(1)+'%':'-'}</td><td>${d.periodEnd?fmtDateS(d.periodEnd):'-'}</td><td>${d.autoRenew?'✅':'❌'}</td><td style="color:${sc}">${s}</td></tr>`;
         }).join('');
     }
 
@@ -987,7 +1040,6 @@
     function fmtDateS(s) { try{return new Date(s).toLocaleDateString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit'});}catch(e){return s;} }
     function timeAgo(s) { const d=Date.now()-new Date(s).getTime(); if(d<60000)return'刚刚'; if(d<3600000)return Math.floor(d/60000)+'分钟前'; if(d<86400000)return Math.floor(d/3600000)+'小时前'; return Math.floor(d/86400000)+'天前'; }
     function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
-    function copyExtractScript() { navigator.clipboard.writeText(document.getElementById('extractScript').textContent).then(()=>showToast('✅ 脚本已复制','success')); }
 
     init();
     </script>
