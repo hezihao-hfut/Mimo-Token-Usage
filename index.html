@@ -200,7 +200,6 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
                     <button class="btn btn-success btn-lg" onclick="startLogin()" id="btnLogin">🚀 登录账号</button>
-                    <button class="btn btn-primary" onclick="openAddModal()">＋ 手动添加</button>
                     <button class="btn btn-ghost" onclick="refreshAll()">🔄 全部刷新</button>
                     <button class="btn btn-ghost" onclick="importData()">📥 导入</button>
                     <button class="btn btn-ghost" onclick="exportData()">📤 导出</button>
@@ -213,7 +212,6 @@
                 <p>还没有添加任何账号</p>
                 <div style="display:flex; gap:12px; justify-content:center;">
                     <button class="btn btn-success btn-lg" onclick="startLogin()">🚀 登录账号</button>
-                    <button class="btn btn-primary" onclick="openAddModal()">＋ 手动添加</button>
                 </div>
             </div>
         </div>
@@ -264,81 +262,11 @@
             </div>
 
             <div class="settings-section">
-                <h3>🔄 自动刷新</h3>
-                <p style="font-size:0.88em; color:var(--text-secondary); margin-bottom:16px; line-height:1.6;">
-                    定期调用 MiMo API 保持 Cookie 会话活跃，避免频繁手动登录。<br>
-                    建议间隔 4-6 小时，过短可能触发风控。
-                </p>
-                <div class="form-group">
-                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
-                        <input type="checkbox" id="autoRefreshEnabled" onchange="toggleAutoRefreshUI()" style="width:18px; height:18px;" />
-                        <span>启用自动刷新</span>
-                    </label>
-                </div>
-                <div id="autoRefreshConfig" style="display:none;">
-                    <div class="form-group">
-                        <label>刷新间隔（小时）</label>
-                        <select id="autoRefreshInterval">
-                            <option value="2">2 小时</option>
-                            <option value="4" selected>4 小时（推荐）</option>
-                            <option value="6">6 小时</option>
-                            <option value="8">8 小时</option>
-                            <option value="12">12 小时</option>
-                            <option value="24">24 小时</option>
-                        </select>
-                    </div>
-                    <div style="display:flex; gap:10px; margin-bottom:16px;">
-                        <button class="btn btn-primary" onclick="saveAutoRefreshConfig()">💾 保存配置</button>
-                        <button class="btn btn-success" onclick="triggerAutoRefresh()">🔄 立即刷新</button>
-                    </div>
-                </div>
-                <div id="autoRefreshStatus" style="padding:12px; background:rgba(255,255,255,0.03); border-radius:8px; font-size:0.85em;">
-                    <div style="color:var(--text-muted);">加载中...</div>
-                </div>
-            </div>
-
-            <div class="settings-section">
                 <h3>🗑️ 数据管理</h3>
                 <div style="display:flex; gap:10px;">
                     <button class="btn btn-danger" onclick="clearAllData()">清除所有数据</button>
                     <button class="btn btn-ghost" onclick="exportData()">导出备份</button>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Add/Edit Modal -->
-    <div class="modal-overlay" id="accountModal">
-        <div class="modal">
-            <h2 id="modalTitle">添加 MiMo 账号</h2>
-            <div class="form-group">
-                <label>账号名称</label>
-                <input type="text" id="accName" placeholder="例如: 主账号 / 测试账号" />
-            </div>
-            <div class="form-group">
-                <label>认证方式</label>
-                <select id="accAuthType" onchange="toggleAuthFields()">
-                    <option value="cookie">Cookie (从 MiMo 页面提取)</option>
-                    <option value="manual">手动输入数据</option>
-                </select>
-            </div>
-            <div id="cookieFields">
-                <div class="form-group">
-                    <label>Cookie 字符串</label>
-                    <textarea id="accCookie" placeholder="从 MiMo 控制台脚本提取，或从 DevTools 复制"></textarea>
-                    <div class="hint">格式: userId=xxx; api-platform_slh=xxx; api-platform_ph=xxx</div>
-                </div>
-            </div>
-            <div id="manualFields" style="display:none;">
-                <div class="info-box">💡 手动从 MiMo plan-manage 页面复制数据填入。</div>
-                <div class="form-group"><label>Plan 类型</label><input type="text" id="accPlanName" placeholder="Standard / Lite / Pro / Max" /></div>
-                <div class="form-group"><label>已用 Credits</label><input type="number" id="accUsedTokens" placeholder="例如: 75452201" /></div>
-                <div class="form-group"><label>总额度 Credits</label><input type="number" id="accTotalTokens" placeholder="例如: 200000000" /></div>
-                <div class="form-group"><label>到期时间</label><input type="text" id="accPeriodEnd" placeholder="例如: 2026-05-28 23:59:59" /></div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-ghost" onclick="closeModal()">取消</button>
-                <button class="btn btn-primary" onclick="saveAccount()">保存</button>
             </div>
         </div>
     </div>
@@ -373,7 +301,6 @@
     const STORAGE_KEY = 'mimo_accounts';
     const SETTINGS_KEY = 'mimo_dashboard_settings';
     let accounts = [];
-    let editingId = null;
     let charts = {};
     let proxyAvailable = false;
     let authEventSource = null;
@@ -387,9 +314,42 @@
     };
 
     async function init() {
-        loadData(); loadSettings(); renderAccounts(); updateSummary(); toggleAuthFields();
+        loadData(); loadSettings(); renderAccounts(); updateSummary();
         await checkProxy();
-        await loadAutoRefreshStatus();
+        if (proxyAvailable) {
+            await syncDataFromServer();
+        }
+        // 定时从服务器同步数据（每 30 秒）
+        setInterval(async () => {
+            if (proxyAvailable) {
+                await syncDataFromServer();
+            }
+        }, 30000);
+    }
+
+    async function syncDataFromServer() {
+        try {
+            const resp = await fetch(getProxyUrl() + '/api/accounts', { signal: AbortSignal.timeout(5000) });
+            if (resp.ok) {
+                const result = await resp.json();
+                if (result.accounts && result.accounts.length > 0) {
+                    // 合并服务器数据到本地
+                    result.accounts.forEach(serverAcc => {
+                        const localAcc = accounts.find(a => a.userId === serverAcc.userId || a.id === serverAcc.userId);
+                        if (localAcc) {
+                            if (serverAcc.data) localAcc.data = serverAcc.data;
+                            localAcc.lastRefreshed = serverAcc.lastRefreshed;
+                            // 同步 passToken 相关字段
+                            if (serverAcc.xiaomiPassToken !== undefined) localAcc.xiaomiPassToken = serverAcc.xiaomiPassToken;
+                            if (serverAcc.passTokenExpires !== undefined) localAcc.passTokenExpires = serverAcc.passTokenExpires;
+                        }
+                    });
+                    saveData(); renderAccounts(); updateSummary();
+                }
+            }
+        } catch (e) {
+            console.error('Sync data failed:', e);
+        }
     }
 
     async function checkProxy() {
@@ -404,112 +364,6 @@
     function loadSettings() { try { const s = JSON.parse(localStorage.getItem(SETTINGS_KEY)); if (s?.proxyUrl) document.getElementById('settingProxyUrl').value = s.proxyUrl; } catch(e){} }
     function saveSettings() { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ proxyUrl: getProxyUrl() })); checkProxy(); showToast('设置已保存', 'success'); }
     async function testConnection() { try { await fetch(getProxyUrl() + '/api/health', { signal: AbortSignal.timeout(5000) }); showToast('✅ 代理连接成功！', 'success'); proxyAvailable = true; } catch(e) { showToast('❌ 无法连接到代理', 'error'); } }
-
-    // ── Auto Refresh ──
-    async function loadAutoRefreshStatus() {
-        if (!proxyAvailable) return;
-        try {
-            const resp = await fetch(getProxyUrl() + '/api/auto-refresh/status', { signal: AbortSignal.timeout(3000) });
-            if (resp.ok) {
-                const status = await resp.json();
-                updateAutoRefreshUI(status);
-            }
-        } catch(e) { /* silent */ }
-    }
-
-    function updateAutoRefreshUI(status) {
-        const checkbox = document.getElementById('autoRefreshEnabled');
-        const config = document.getElementById('autoRefreshConfig');
-        const statusDiv = document.getElementById('autoRefreshStatus');
-        const intervalSelect = document.getElementById('autoRefreshInterval');
-
-        if (checkbox) checkbox.checked = status.enabled;
-        if (config) config.style.display = status.enabled ? 'block' : 'none';
-        if (intervalSelect) intervalSelect.value = status.intervalHours;
-
-        if (statusDiv) {
-            let html = '';
-            if (status.enabled) {
-                html += `<div style="color:var(--success); margin-bottom:8px;">✅ 自动刷新已启用</div>`;
-                html += `<div>刷新间隔: <strong>${status.intervalHours} 小时</strong></div>`;
-                if (status.lastRefreshTime) {
-                    html += `<div>上次刷新: ${timeAgo(status.lastRefreshTime)}</div>`;
-                    if (status.lastRefreshResult) {
-                        const r = status.lastRefreshResult;
-                        html += `<div>结果: ${r.success} 成功, ${r.failed} 失败 / 共 ${r.total} 个</div>`;
-                    }
-                }
-                if (status.nextRefreshTime) {
-                    html += `<div style="margin-top:8px; color:var(--accent);">⏰ 下次刷新: ${fmtDate(status.nextRefreshTime)}</div>`;
-                }
-            } else {
-                html = '<div style="color:var(--text-muted);">⏸️ 自动刷新已禁用</div>';
-            }
-            statusDiv.innerHTML = html;
-        }
-    }
-
-    function toggleAutoRefreshUI() {
-        const checkbox = document.getElementById('autoRefreshEnabled');
-        const config = document.getElementById('autoRefreshConfig');
-        if (config) config.style.display = checkbox.checked ? 'block' : 'none';
-    }
-
-    async function saveAutoRefreshConfig() {
-        if (!proxyAvailable) { showToast('❌ 代理未连接', 'error'); return; }
-        const enabled = document.getElementById('autoRefreshEnabled').checked;
-        const interval = parseInt(document.getElementById('autoRefreshInterval').value);
-        try {
-            const resp = await fetch(getProxyUrl() + '/api/auto-refresh/config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ enabled, intervalHours: interval }),
-                signal: AbortSignal.timeout(5000),
-            });
-            if (resp.ok) {
-                const result = await resp.json();
-                updateAutoRefreshUI(result);
-                showToast(`✅ 自动刷新配置已保存`, 'success');
-            } else {
-                throw new Error('保存失败');
-            }
-        } catch(e) {
-            showToast('❌ ' + e.message, 'error');
-        }
-    }
-
-    async function triggerAutoRefresh() {
-        if (!proxyAvailable) { showToast('❌ 代理未连接', 'error'); return; }
-        showToast('🔄 正在刷新所有账号...', 'info');
-        try {
-            const resp = await fetch(getProxyUrl() + '/api/auto-refresh/trigger', {
-                method: 'POST',
-                signal: AbortSignal.timeout(60000),
-            });
-            if (resp.ok) {
-                const result = await resp.json();
-                showToast(`✅ 刷新完成: ${result.success} 成功, ${result.failed} 失败`, 'success');
-                // 重新加载账号数据
-                await refreshAllLocal();
-                await loadAutoRefreshStatus();
-            } else {
-                throw new Error('刷新失败');
-            }
-        } catch(e) {
-            showToast('❌ ' + e.message, 'error');
-        }
-    }
-
-    async function refreshAllLocal() {
-        // 从服务器获取最新数据并更新本地
-        try {
-            const resp = await fetch(getProxyUrl() + '/api/health', { signal: AbortSignal.timeout(3000) });
-            if (resp.ok) {
-                // 重新加载页面数据
-                location.reload();
-            }
-        } catch(e) { /* silent */ }
-    }
 
     // ── Auth: Playwright browser login ──
     async function startLogin() {
@@ -607,6 +461,9 @@
                 customName: false,
                 data: account.data,
                 cookieExpires: account.cookieExpires || null,
+                // passToken 信息（用于自动续期）
+                xiaomiPassToken: account.xiaomiPassToken || '',
+                passTokenExpires: account.passTokenExpires || null,
                 lastUpdated: new Date().toISOString(),
             };
             if (idx >= 0) {
@@ -671,94 +528,7 @@
         if(name==='comparison') renderComparison();
     }
 
-    function openAddModal() {
-        editingId = null;
-        document.getElementById('modalTitle').textContent = '添加 MiMo 账号';
-        document.getElementById('accName').value = '';
-        document.getElementById('accAuthType').value = 'cookie';
-        document.getElementById('accCookie').value = '';
-        document.getElementById('accPlanName').value = '';
-        document.getElementById('accUsedTokens').value = '';
-        document.getElementById('accTotalTokens').value = '';
-        document.getElementById('accPeriodEnd').value = '';
-        toggleAuthFields();
-        document.getElementById('accountModal').classList.add('show');
-    }
 
-    function openEditModal(id) {
-        const acc = accounts.find(a=>a.id===id);
-        if(!acc) return;
-        editingId = id;
-        document.getElementById('modalTitle').textContent = '编辑账号';
-        document.getElementById('accName').value = acc.name||'';
-        document.getElementById('accAuthType').value = acc.authType||'manual';
-        document.getElementById('accCookie').value = acc.cookie||'';
-        document.getElementById('accPlanName').value = acc.data?.planName||'';
-        document.getElementById('accUsedTokens').value = acc.data?.usedTokens||'';
-        document.getElementById('accTotalTokens').value = acc.data?.totalTokens||'';
-        document.getElementById('accPeriodEnd').value = acc.data?.periodEnd||'';
-        toggleAuthFields();
-        document.getElementById('accountModal').classList.add('show');
-    }
-
-    function closeModal() { document.getElementById('accountModal').classList.remove('show'); }
-    function toggleAuthFields() {
-        const t = document.getElementById('accAuthType').value;
-        document.getElementById('cookieFields').style.display = t==='cookie'?'block':'none';
-        document.getElementById('manualFields').style.display = t==='manual'?'block':'none';
-    }
-
-    async function saveAccount() {
-        const name = document.getElementById('accName').value.trim();
-        const authType = document.getElementById('accAuthType').value;
-        if (!name) { showToast('请输入账号名称', 'error'); return; }
-        const newCookie = document.getElementById('accCookie').value.trim();
-        const acc = {
-            id: editingId || Date.now().toString(36)+Math.random().toString(36).slice(2,6),
-            name, authType,
-            cookie: newCookie,
-            data: null, lastUpdated: null,
-        };
-        if (authType === 'manual') {
-            const used = parseFloat(document.getElementById('accUsedTokens').value)||0;
-            const total = parseFloat(document.getElementById('accTotalTokens').value)||0;
-            acc.data = {
-                planName: document.getElementById('accPlanName').value.trim()||'Token Plan',
-                usedTokens: used, totalTokens: total,
-                percent: total>0?used/total:0,
-                periodEnd: document.getElementById('accPeriodEnd').value.trim(),
-            };
-            acc.lastUpdated = new Date().toISOString();
-        }
-        if (editingId) {
-            const idx = accounts.findIndex(a=>a.id===editingId);
-            if(idx>=0) {
-                // Preserve existing data if not provided
-                if(!acc.data) { acc.data=accounts[idx].data; acc.lastUpdated=accounts[idx].lastUpdated; }
-                // Preserve userId/email from existing account
-                acc.userId = accounts[idx].userId;
-                acc.email = accounts[idx].email;
-                accounts[idx]=acc;
-            }
-        } else accounts.push(acc);
-        saveData(); renderAccounts(); updateSummary(); closeModal();
-        showToast(`账号「${name}」已${editingId?'更新':'添加'}`, 'success');
-
-        // Sync cookie to server if provided and proxy available
-        if (newCookie && proxyAvailable) {
-            try {
-                await fetch(getProxyUrl() + '/api/cookie', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userId: acc.userId,
-                        email: acc.email,
-                        cookie: newCookie,
-                    }),
-                });
-            } catch(e) { /* silent */ }
-        }
-    }
 
     function deleteAccount(id) {
         const acc = accounts.find(a=>a.id===id);
@@ -794,7 +564,12 @@
             const result = await resp.json();
 
             if (resp.status === 401 || result.error?.includes('401') || result.error?.includes('expired')) {
-                showToast(`❌「${acc.name}」Cookie 已过期，请重新填入 Cookie`, 'error');
+                // 有 passToken 时后端会自动尝试续期，如果仍然 401 说明 passToken 也过期了
+                if (result.error?.includes('auto-refresh failed') || result.error?.includes('passToken')) {
+                    showToast(`❌「${acc.name}」Cookie 和 passToken 均已过期，请重新登录`, 'error');
+                } else {
+                    showToast(`❌「${acc.name}」Cookie 已过期，请重新登录或补充 Cookie`, 'error');
+                }
                 if(btn) btn.innerHTML='🔄 刷新';
                 return;
             }
@@ -819,82 +594,6 @@
             showToast(`✅「${acc.name}」数据已更新`,'success');
         } catch(e) { console.error(e); showToast(`❌ ${e.message}`,'error'); }
         if(btn) btn.innerHTML='🔄 刷新';
-    }
-
-    // ====== Supplement httpOnly Cookie (api-platform_serviceToken only) ======
-    async function pasteCookie(id) {
-        const acc = accounts.find(a=>a.id===id);
-        if(!acc) return;
-        if(!proxyAvailable) { showToast('❌ 代理未连接，请先启动 node server.js', 'error'); return; }
-        openCookieModal(acc);
-    }
-
-    function openCookieModal(acc) {
-        let modal = document.getElementById('cookieModal');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'cookieModal';
-            modal.className = 'modal-overlay';
-            modal.innerHTML = `
-                <div class="modal">
-                    <h2>🔑 补充 httpOnly Cookie — <span id="cookieModalName"></span></h2>
-                    <div class="info-box">
-                        只需粘贴 <code>api-platform_serviceToken</code> 的 Value 值。<br>
-                        从 DevTools → <code>Application</code> → <code>Cookies</code> → <code>platform.xiaomimimo.com</code> 中找到它，双击 Value 列复制。
-                    </div>
-                    <div class="form-group">
-                        <label>api-platform_serviceToken 的值</label>
-                        <textarea id="cookieInput" rows="4" placeholder='yVHEDQlNiFT1WavLtPFne35pFbMuhNw51...'></textarea>
-                        <div class="hint">粘贴时如果带了外面的引号 " 也没关系，系统会自动处理</div>
-                    </div>
-                    <div class="modal-actions">
-                        <button class="btn btn-ghost" onclick="document.getElementById('cookieModal').classList.remove('show')">取消</button>
-                        <button class="btn btn-primary" onclick="submitCookie()">✅ 保存并刷新</button>
-                    </div>
-                </div>`;
-            document.body.appendChild(modal);
-        }
-        document.getElementById('cookieModalName').textContent = acc.name;
-        document.getElementById('cookieInput').value = '';
-        document.getElementById('cookieModal').classList.add('show');
-        window._cookieTargetId = acc.id;
-        setTimeout(() => document.getElementById('cookieInput').focus(), 100);
-    }
-
-    async function submitCookie() {
-        let tokenValue = document.getElementById('cookieInput').value.trim();
-        if (!tokenValue) { showToast('请输入 token 值', 'error'); return; }
-        document.getElementById('cookieModal').classList.remove('show');
-
-        const id = window._cookieTargetId;
-        const acc = accounts.find(a=>a.id===id);
-        if(!acc) return;
-
-        // 去掉用户可能粘贴的外层引号，再重新加上
-        tokenValue = tokenValue.replace(/^["']|["']$/g, '');
-
-        showToast('正在保存 Cookie...', 'info');
-        try {
-            const resp = await fetch(getProxyUrl() + '/api/cookie', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: acc.userId,
-                    email: acc.email,
-                    serviceToken: tokenValue,
-                }),
-                signal: AbortSignal.timeout(5000),
-            });
-            const result = await resp.json();
-            if (result.success) {
-                showToast('✅ Cookie 已保存，正在刷新...', 'success');
-                await refreshAccount(id);
-            } else {
-                showToast('❌ 保存失败: ' + result.error, 'error');
-            }
-        } catch(e) {
-            showToast('❌ ' + e.message, 'error');
-        }
     }
 
     async function refreshAll() {
@@ -969,11 +668,11 @@
                     <div class="detail-item"><span class="detail-label">账户余额</span><span class="detail-value">${bal}</span></div>
                     <div class="detail-item"><span class="detail-label">到期</span><span class="detail-value">${d.periodEnd?fmtDateS(d.periodEnd):'-'}</span></div>
                     ${acc.cookieExpires?`<div class="detail-item"><span class="detail-label">Cookie过期</span><span class="detail-value" style="color:${new Date(acc.cookieExpires)<new Date()?'var(--danger)':'var(--text-primary)'}">${fmtDateS(acc.cookieExpires)}</span></div>`:''}
+                    ${acc.xiaomiPassToken?`<div class="detail-item"><span class="detail-label">🔑 自动续期</span><span class="detail-value" style="color:${getPassTokenColor(acc)}">${getPassTokenText(acc)}</span></div>`:''}
                 </div>
                 <div class="account-actions">
                     <button class="btn btn-sm btn-primary" data-refresh-id="${acc.id}" onclick="refreshAccount('${acc.id}')">🔄 刷新</button>
-                    <button class="btn btn-sm btn-ghost" onclick="pasteCookie('${acc.id}')">🔑 补充Cookie</button>
-                    <button class="btn btn-sm btn-ghost" onclick="openEditModal('${acc.id}')">✏️ 编辑</button>
+                    ${acc.xiaomiPassToken?`<button class="btn btn-sm btn-success" onclick="refreshPassToken('${acc.userId}')">🔁 续期Token</button>`:''}
                     <button class="btn btn-sm btn-danger" onclick="deleteAccount('${acc.id}')">🗑️ 删除</button>
                 </div>
             </div>`;
@@ -1017,6 +716,48 @@
             const cu=d.compUsedTokens||0, ct=d.compTotalTokens||0;
             return `<tr><td><strong>${esc(a.name)}</strong></td><td>${esc(d.planName||'-')}</td><td class="token-count">${fmtT(u)}</td><td class="token-count">${t>0?fmtT(t):'-'}</td><td class="token-count">${ct>0?fmtT(cu):'-'}</td><td class="token-count">${ct>0?fmtT(ct):'-'}</td><td class="highlight">${t>0?p.toFixed(1)+'%':'-'}</td><td>${d.periodEnd?fmtDateS(d.periodEnd):'-'}</td><td>${d.autoRenew?'✅':'❌'}</td><td style="color:${sc}">${s}</td></tr>`;
         }).join('');
+    }
+
+    // ====== passToken helpers ======
+    function getPassTokenColor(acc) {
+        if (!acc.passTokenExpires) return 'var(--success)';
+        const daysLeft = (new Date(acc.passTokenExpires) - new Date()) / (1000*60*60*24);
+        if (daysLeft <= 0) return 'var(--danger)';
+        if (daysLeft <= 3) return 'var(--warning)';
+        return 'var(--success)';
+    }
+    function getPassTokenText(acc) {
+        if (!acc.passTokenExpires) return '✅ 有效';
+        const daysLeft = (new Date(acc.passTokenExpires) - new Date()) / (1000*60*60*24);
+        if (daysLeft <= 0) return '❌ 已过期';
+        if (daysLeft <= 1) return '⚠️ 不足1天';
+        if (daysLeft <= 3) return '⚠️ 剩余' + Math.ceil(daysLeft) + '天';
+        return '✅ 剩余' + Math.ceil(daysLeft) + '天';
+    }
+    async function refreshPassToken(userId) {
+        if (!proxyAvailable) { showToast('❌ 代理未连接', 'error'); return; }
+        showToast('正在用 passToken 续期 serviceToken...', 'info');
+        try {
+            const resp = await fetch(`${getProxyUrl()}/api/cookie/refresh-token/${encodeURIComponent(userId)}`, {
+                method: 'POST',
+                signal: AbortSignal.timeout(30000),
+            });
+            const result = await resp.json();
+            if (result.success) {
+                showToast('✅ serviceToken 续期成功！正在刷新数据...', 'success');
+                // 续期后自动刷新数据
+                const acc = accounts.find(a => a.userId === userId);
+                if (acc) await refreshAccount(acc.id);
+            } else {
+                if (result.error?.includes('passToken expired') || result.error?.includes('login page')) {
+                    showToast('❌ passToken 已过期，请重新登录小米账号', 'error');
+                } else {
+                    showToast('❌ 续期失败: ' + result.error, 'error');
+                }
+            }
+        } catch(e) {
+            showToast('❌ ' + e.message, 'error');
+        }
     }
 
     // ====== Import/Export ======

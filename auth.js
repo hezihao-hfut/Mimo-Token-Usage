@@ -153,6 +153,9 @@ async function startAuth() {
 
         const page = context.pages()[0] || await context.newPage();
 
+        // 创建 CDP session 用于获取 httpOnly cookies
+        const cdpSession = await context.newCDPSession(page);
+
         // 拦截 MiMo API 请求，捕获 Cookie
         let capturedCookie = null;
         let capturedData = {};
@@ -309,6 +312,32 @@ async function startAuth() {
         }
         console.log('[Auth] Cookie captured:', !!capturedCookie, '| Data:', Object.keys(capturedData).join(', '));
 
+        // ── 捕获小米账号 passToken（用于自动续期 serviceToken）──
+        let capturedPassToken = null;
+        let capturedXiaomiCookies = {};
+        let capturedPassTokenExpires = null;
+        try {
+            const { cookies: allCookies } = await cdpSession.send('Network.getAllCookies');
+            const passTokenCookie = allCookies.find(c => c.name === 'passToken' && c.domain.includes('account.xiaomi.com'));
+            if (passTokenCookie) {
+                capturedPassToken = passTokenCookie.value;
+                if (passTokenCookie.expires > 0) {
+                    capturedPassTokenExpires = new Date(passTokenCookie.expires * 1000).toISOString();
+                }
+                console.log('[Auth] ✅ Captured passToken, expires:', capturedPassTokenExpires || 'session');
+            }
+            // 捕获辅助 cookie（重定向链需要）
+            for (const name of ['cUserId', 'deviceId', 'userId']) {
+                const c = allCookies.find(c => c.name === name && c.domain.includes('account.xiaomi.com'));
+                if (c) capturedXiaomiCookies[name] = c.value;
+            }
+            if (Object.keys(capturedXiaomiCookies).length > 0) {
+                console.log('[Auth] ✅ Captured xiaomi cookies:', Object.keys(capturedXiaomiCookies).join(', '));
+            }
+        } catch (e) {
+            console.error('[Auth] Failed to capture passToken:', e.message);
+        }
+
         // 主动获取缺失数据
         const missingEndpoints = [];
         if (!capturedData.detail) missingEndpoints.push({ key: 'detail', path: '/api/v1/tokenPlan/detail' });
@@ -353,6 +382,10 @@ async function startAuth() {
             email: profile.email || '',
             cookie: capturedCookie || '',
             cookieExpires: capturedCookieExpires,
+            // 小米账号 passToken（30天有效期，用于自动续期 serviceToken）
+            xiaomiPassToken: capturedPassToken || '',
+            xiaomiCookies: capturedXiaomiCookies,
+            passTokenExpires: capturedPassTokenExpires,
             data: {
                 planName: detail.planName || '-',
                 planCode: detail.planCode || '-',
